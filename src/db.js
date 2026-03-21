@@ -1,6 +1,7 @@
 import pkg from 'pg';
 const { Pool } = pkg;
 import dotenv from 'dotenv';
+import crypto from 'crypto';
 
 dotenv.config();
 
@@ -166,7 +167,7 @@ export async function seedDatabase() {
 }
 
 export function generateId() {
-  return require('crypto').randomUUID();
+  return crypto.randomUUID();
 }
 
 export async function query(text, params) {

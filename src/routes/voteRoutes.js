@@ -1,4 +1,5 @@
 import express from 'express';
+import crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { authenticateToken, requireRole, getUserById } from '../auth.js';
 import { query } from '../db.js';
@@ -198,7 +199,7 @@ router.post('/votes', authenticateToken, async (req, res) => {
       }
 
       const voteId = uuidv4();
-      const voteHash = require('crypto')
+      const voteHash = crypto
         .createHash('sha256')
         .update(`${voteId}${candidateId}${electionId}${Date.now()}`)
         .digest('hex');
