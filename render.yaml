@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: sovs-backend
+    runtime: node
+    plan: free
+    
+    buildCommand: npm install
+    startCommand: npm start
+    
+    env:
+      - key: NODE_ENV
+        value: production
+      - key: APP_ENV
+        value: production
+      - key: PORT
+        value: 3000
+    
+    # Environment variables should be set in Render dashboard
+    # Add these in Render Environment Variables:
+    # - DATABASE_URL
+    # - JWT_SECRET
+    # - JWT_ISSUER
+    # - JWT_AUDIENCE
+    # - JWT_EXPIRATION_MS
+    # - CORS_ALLOWED_HOSTS
+    
+    healthCheckPath: /
+    
+    # Auto-deploy on git push
+    autoDeploy: true

@@ -1,0 +1,25 @@
+# SOVS Backend Environment Variables
+# This file contains all environment variables needed for SOVS Backend deployment
+# Format: KEY=VALUE
+
+# Database Configuration (Render/Supabase)
+DATABASE_URL=postgresql://postgres:sovsnew@365@db.xxxxx.supabase.co:5432/postgres
+
+# JWT Configuration
+JWT_SECRET=gdfreyo01-voting-backend-2024-secure-key
+JWT_ISSUER=university-voting-app
+JWT_AUDIENCE=university-voting-users
+JWT_EXPIRATION_MS=86400000
+
+# Environment Settings
+NODE_ENV=production
+APP_ENV=production
+
+# Server Configuration
+PORT=3000
+
+# CORS Configuration (Optional)
+CORS_ALLOWED_HOSTS=*
+
+# Render Deployment Platform
+DEPLOYMENT_PLATFORM=render
