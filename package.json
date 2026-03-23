@@ -1,7 +1,7 @@
 {
   "name": "university-voting-app-api",
   "version": "1.0.0",
-  "description": "University Voting App - Node.js/Express Backend (Vercel Compatible)",
+  "description": "University Voting App - Node.js/Express Backend (Render Deployment)",
   "main": "src/index.js",
   "type": "module",
   "engines": {
