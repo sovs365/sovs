@@ -3,7 +3,15 @@
 
 ---
 
-## 📋 BEFORE YOU START - Checklist
+## ⚡ IMPORTANT: DATABASE SETUP FIRST
+
+**BEFORE following this guide**, set up your Render PostgreSQL database:
+
+📖 **Follow**: `RENDER_DATABASE_SETUP.md`
+
+This will give you your DATABASE_URL, which you'll need in this guide!
+
+---
 
 Make sure you have:
 - [ ] GitHub account (`sovs365`)
@@ -35,27 +43,24 @@ CORS_ALLOWED_HOSTS=*
 
 ---
 
-# PART 1: GETTING YOUR SUPABASE CONNECTION STRING
+# PART 1: GETTING YOUR RENDER DATABASE CONNECTION STRING
 
-## Step 1: Open Supabase Dashboard
-1. Go to: https://app.supabase.com
-2. Login with your email
-3. You should see your projects
+## Step 1: Create Your Render Database FIRST
 
-## Step 2: Select Your Database
-1. Click on your Supabase project (the one you created)
-2. On the left sidebar, click **"Settings"** (gear icon)
-3. Click **"Database"**
+**IMPORTANT**: Before starting this deployment, you MUST create a PostgreSQL database in Render.
 
-## Step 3: Find Your Connection String
-1. Look for the section: **"Connection string"** or **"Direct connection string"**
-2. You should see this format:
-   ```
-   postgresql://postgres:[password]@db.xxxxx.supabase.co:5432/postgres
-   ```
-3. Click the **"Copy"** button to copy the entire URL
+**Follow This Guide**: `RENDER_DATABASE_SETUP.md`
 
-**SAVE THIS** - You'll need it for Render!
+This will show you:
+- How to create PostgreSQL database on Render
+- Where to find your connection string
+- How to copy your DATABASE_URL
+
+**⏱️ Time**: 5-10 minutes
+
+## After Database Is Created:
+
+Once you have your DATABASE_URL from Render (from RENDER_DATABASE_SETUP.md), continue to PART 2 below.
 
 ---
 
