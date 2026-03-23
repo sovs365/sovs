@@ -1,13 +1,13 @@
 # SOVS Backend - Render Deployment
 
-University Voting System Backend API built with Node.js/Express and PostgreSQL (Supabase).
+University Voting System Backend API built with Node.js/Express and PostgreSQL (Render).
 
 ## Quick Start
 
 ### Prerequisites
 - Node.js 24.x or higher
 - npm (comes with Node.js)
-- PostgreSQL database (Supabase)
+- PostgreSQL database (Render hosting)
 - Render account (https://render.com)
 
 ### Local Development
@@ -29,7 +29,7 @@ University Voting System Backend API built with Node.js/Express and PostgreSQL (
    ```
 
 4. **Update environment variables in .env**
-   - Update `DATABASE_URL` with your Supabase connection string
+   - Update `DATABASE_URL` with your Render PostgreSQL connection string
    - Keep other values as provided
 
 5. **Start the server**
@@ -81,9 +81,9 @@ All required environment variables are documented in the `.sovs` file:
 
 ### Step 3: Add Environment Variables
 1. In Render dashboard → Environment
-2. Add all variables from `.sovs` file:
+2. Add all variables from `.env.sovs` file:
    ```
-   DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@db.xxx.supabase.co:5432/postgres
+   DATABASE_URL=postgres://postgres:YOUR_PASSWORD@your-render-host.onrender.com:5432/sovs_db
    JWT_SECRET=gdfreyo01-voting-backend-2024-secure-key
    JWT_ISSUER=university-voting-app
    JWT_AUDIENCE=university-voting-users
@@ -101,12 +101,14 @@ All required environment variables are documented in the `.sovs` file:
 
 ## Database Setup
 
-### Using Supabase
+### Using Render PostgreSQL
 
-1. Create project at https://app.supabase.com
-2. Get connection string: Settings → Database → Connection string
-3. Copy the PostgreSQL connection URL
-4. Set as `DATABASE_URL` environment variable
+1. Go to https://dashboard.render.com
+2. Click "New +" → "PostgreSQL"
+3. Create database with name `sovs-database` and database `sovs_db`
+4. Get connection string from dashboard
+5. Set as `DATABASE_URL` environment variable in Render Web Service
+6. See `RENDER_DATABASE_SETUP.md` for detailed steps
 
 The app will automatically create tables on first run using the schema defined in `src/db.js`.
 
@@ -149,7 +151,7 @@ backend-node/
 
 ### Database connection error
 - Verify DATABASE_URL is correct
-- Ensure Supabase database is running
+- Ensure Render PostgreSQL database is running
 - Check password doesn't have special characters that need escaping
 
 ### App crashes after deployment
@@ -186,7 +188,7 @@ View your app in production:
 
 - GitHub: https://github.com/sovs365/sovs
 - Render Docs: https://render.com/docs
-- Supabase Docs: https://supabase.com/docs
+- Render Docs: https://render.com/docs
 
 ---
 

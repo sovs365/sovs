@@ -120,7 +120,7 @@ Now you have your DATABASE_URL! Update your local file:
 1. Open: `.env.sovs` file in your project
 2. Find this line:
    ```
-   DATABASE_URL=postgresql://postgres:sovsnew@365@db.xxxxx.supabase.co:5432/postgres
+   DATABASE_URL=postgres://postgres:your_password@hostname:5432/sovs_db
    ```
 3. Replace it with YOUR Render connection string:
    ```

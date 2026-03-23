@@ -31,7 +31,7 @@
 **Location**: `.env.sovs` file in your repository
 
 ```
-1. DATABASE_URL              → Your Supabase connection string
+1. DATABASE_URL              → Your Render PostgreSQL connection string
 2. JWT_SECRET               → gdfreyo01-voting-backend-2024-secure-key
 3. JWT_ISSUER              → university-voting-app
 4. JWT_AUDIENCE            → university-voting-users
@@ -46,11 +46,15 @@
 
 ## 🚀 DEPLOYMENT STEPS (11 PARTS)
 
-### Part 1: Get Supabase Connection String
-- [ ] Go to https://app.supabase.com
-- [ ] Select your project
-- [ ] Settings → Database → Copy connection string
-- [ ] Save it for Part 5
+### Part 1: Create PostgreSQL Database in Render
+- [ ] Go to https://dashboard.render.com
+- [ ] Click "New +" → "PostgreSQL"
+- [ ] Name: `sovs-database`
+- [ ] Database: `sovs_db`
+- [ ] Select Free plan
+- [ ] Click "Create Database"
+- [ ] Wait 2-3 minutes for database to be available
+- [ ] Copy your connection string (see RENDER_DATABASE_SETUP.md for exact locations)
 
 ### Part 2: Create Render Account
 - [ ] Go to https://render.com
@@ -75,18 +79,20 @@
 - [ ] Branch: `main`
 - [ ] Build Command: `npm install`
 - [ ] Start Command: `npm start`
+- [ ] Note: Add DATABASE_URL when prompted (from Part 1)
 
 ### Part 6: Add 9 Environment Variables
-- [ ] Scroll to "Environment Variables"
-- [ ] Add `DATABASE_URL` (from Part 1)
-- [ ] Add `JWT_SECRET`
-- [ ] Add `JWT_ISSUER`
-- [ ] Add `JWT_AUDIENCE`
-- [ ] Add `JWT_EXPIRATION_MS`
-- [ ] Add `NODE_ENV`
-- [ ] Add `APP_ENV`
-- [ ] Add `PORT`
-- [ ] Add `CORS_ALLOWED_HOSTS`
+- [ ] Scroll to "Environment Variables" section
+- [ ] Add `DATABASE_URL`: Your Render PostgreSQL connection string (from Part 1)
+- [ ] Add `JWT_SECRET`: `gdfreyo01-voting-backend-2024-secure-key`
+- [ ] Add `JWT_ISSUER`: `university-voting-app`
+- [ ] Add `JWT_AUDIENCE`: `university-voting-users`
+- [ ] Add `JWT_EXPIRATION_MS`: `86400000`
+- [ ] Add `NODE_ENV`: `production`
+- [ ] Add `APP_ENV`: `production`
+- [ ] Add `PORT`: `3000`
+- [ ] Add `CORS_ALLOWED_HOSTS`: `*`
+- [ ] Tip: See `ENVIRONMENT_VARIABLES_REFERENCE.md` for copy-paste format
 
 ### Part 7: Deploy to Render
 - [ ] Click "Create Web Service"
@@ -149,16 +155,16 @@
 | https://render.com | Render website |
 | https://dashboard.render.com | Render dashboard |
 | https://github.com/sovs365/sovs | Your GitHub repo |
-| https://app.supabase.com | Supabase dashboard |
 
 ---
 
 ## 🎓 FILES TO READ (IN ORDER)
 
 1. **Start Here**: This file (quick checklist)
-2. **Detailed Guide**: `RENDER_DEPLOYMENT_GUIDE.md` (step-by-step)
-3. **Variables Reference**: `.env.sovs` (all environment variables)
-4. **Quick Info**: `README.md` (overview)
+2. **Database Setup**: `RENDER_DATABASE_SETUP.md` (create PostgreSQL in Render)
+3. **Detailed Guide**: `RENDER_DEPLOYMENT_GUIDE.md` (deploy your app)
+4. **Variables Reference**: `ENVIRONMENT_VARIABLES_REFERENCE.md` (copy-paste values)
+5. **Quick Info**: `README.md` (overview)
 
 ---
 

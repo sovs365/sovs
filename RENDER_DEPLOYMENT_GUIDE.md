@@ -153,9 +153,9 @@ On the same page, scroll down until you see:
 ### Variable 1: DATABASE_URL
 1. Click **"Add Environment Variable"** (or + button)
 2. **Key**: `DATABASE_URL`
-3. **Value**: Paste your Supabase connection string from Part 1
+3. **Value**: Paste your Render PostgreSQL connection string
    ```
-   postgresql://postgres:sovsnew@365@db.xxxxx.supabase.co:5432/postgres
+   postgres://postgres:sovsnew@365@your-render-host.onrender.com:5432/sovs_db
    ```
 4. Press **Tab** or click elsewhere - it saves automatically
 
@@ -340,7 +340,7 @@ curl https://your-render-url.onrender.com
 ## You Now Have:
 
 ✅ **Live API** accessible worldwide  
-✅ **Database** connected on Supabase  
+✅ **Database** connected on Render PostgreSQL  
 ✅ **Auto-deployment** from GitHub  
 ✅ **Environment variables** secured in Render  
 ✅ **Logs** for monitoring  
@@ -352,7 +352,7 @@ curl https://your-render-url.onrender.com
 | Render Dashboard | https://dashboard.render.com |
 | Your Live API | https://sovs-backend.onrender.com (or your URL) |
 | GitHub Repo | https://github.com/sovs365/sovs |
-| Supabase DB | https://app.supabase.com |
+| Render PostgreSQL | https://dashboard.render.com |
 
 ---
 
@@ -370,7 +370,7 @@ curl https://your-render-url.onrender.com
 
 3. **Monitor Performance**
    - Check Render logs regularly
-   - Monitor database usage in Supabase
+   - Monitor database usage in Render dashboard
 
 4. **Keep Code Updated**
    - Push changes to GitHub
