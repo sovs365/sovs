@@ -3,10 +3,105 @@ import bcryptjs from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
 import { generateToken, authenticateToken, getUserById } from '../auth.js';
 import { query } from '../db.js';
+import emailService from '../utils/emailService.js';
+import verificationCodeManager from '../utils/verificationCodeManager.js';
 
 const router = express.Router();
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-// Register endpoint
+function normalizeEmail(email) {
+  return (email || '').trim().toLowerCase();
+}
+
+function isValidEmail(email) {
+  return EMAIL_PATTERN.test(normalizeEmail(email));
+}
+
+// Send registration verification code (email)
+router.post('/send-registration-code', async (req, res) => {
+  try {
+    const { email } = req.body;
+    const normalizedEmail = normalizeEmail(email);
+
+    if (!normalizedEmail) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    if (!isValidEmail(normalizedEmail)) {
+      return res.status(400).json({ error: 'Invalid email format' });
+    }
+
+    // Check if email already exists
+    const existingUser = await query(
+      'SELECT user_id FROM users WHERE LOWER(email) = $1',
+      [normalizedEmail]
+    );
+
+    if (existingUser.rows.length > 0) {
+      return res.status(400).json({ error: 'Email already registered' });
+    }
+
+    // Generate verification code
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // Store code in memory manager
+    const codeStored = verificationCodeManager.storeCode(normalizedEmail, code, 'registration');
+    if (!codeStored) {
+      return res.status(500).json({ error: 'Could not prepare verification code' });
+    }
+
+    // Send email
+    const emailSent = await emailService.sendVerificationCode(normalizedEmail, code, 'registration');
+
+    if (!emailSent) {
+      return res.status(500).json({ error: 'Failed to send verification code. Please check email configuration.' });
+    }
+
+    res.json({ 
+      message: 'Verification code sent to email',
+      email: normalizedEmail
+    });
+
+  } catch (error) {
+    console.error('Send registration code error:', error);
+    res.status(500).json({ error: 'Failed to send verification code' });
+  }
+});
+
+// Verify registration code
+router.post('/verify-registration-code', async (req, res) => {
+  try {
+    const { email, code } = req.body;
+    const normalizedEmail = normalizeEmail(email);
+    const normalizedCode = (code || '').toString().trim();
+
+    if (!normalizedEmail || !normalizedCode) {
+      return res.status(400).json({ error: 'Email and code are required' });
+    }
+
+    // Verify the code
+    const isValid = verificationCodeManager.verifyCode(normalizedEmail, normalizedCode, 'registration');
+
+    if (!isValid) {
+      return res.status(400).json({ error: 'Invalid or expired verification code' });
+    }
+
+    // Code is valid - delete it so it can't be reused
+    verificationCodeManager.deleteCode(normalizedEmail, 'registration');
+    verificationCodeManager.markRegistrationVerified(normalizedEmail);
+
+    res.json({ 
+      message: 'Email verified successfully',
+      email: normalizedEmail
+    });
+
+  } catch (error) {
+    console.error('Verify registration code error:', error);
+    res.status(500).json({ error: 'Code verification failed' });
+  }
+});
+
+// Register endpoint (after email verification)
 router.post('/register', async (req, res) => {
   try {
     const {
@@ -27,10 +122,21 @@ router.post('/register', async (req, res) => {
       manifesto,
       positionId
     } = req.body;
+    const normalizedEmail = normalizeEmail(email);
+    const normalizedRole = (role || 'voter').toLowerCase();
+    const requiresEmailVerification = normalizedRole !== 'admin';
 
     // Validation
-    if (!username || !password || !fullName) {
-      return res.status(400).json({ error: 'Username, password, and full name are required' });
+    if (!username || !password || !fullName || !normalizedEmail) {
+      return res.status(400).json({ error: 'Username, password, full name, and email are required' });
+    }
+
+    if (!isValidEmail(normalizedEmail)) {
+      return res.status(400).json({ error: 'Invalid email format' });
+    }
+
+    if (requiresEmailVerification && !verificationCodeManager.isRegistrationVerified(normalizedEmail)) {
+      return res.status(403).json({ error: 'Email verification required before registration' });
     }
 
     // Check if username exists
@@ -43,12 +149,22 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Username already exists' });
     }
 
+    // Check if email exists
+    const existingEmail = await query(
+      'SELECT user_id FROM users WHERE LOWER(email) = $1',
+      [normalizedEmail]
+    );
+
+    if (existingEmail.rows.length > 0) {
+      return res.status(400).json({ error: 'Email already registered' });
+    }
+
     const userId = uuidv4();
     const passwordHash = await bcryptjs.hash(password, 12);
     const now = Date.now();
 
     // Auto-verify voters with complete info, always verify admins
-    const shouldVerifyAutomatically = (role === 'voter' || role === 'admin') &&
+    const shouldVerifyAutomatically = (normalizedRole === 'voter' || normalizedRole === 'admin') &&
       regNo && faculty && course && phoneNumber;
 
     // Create user
@@ -59,16 +175,16 @@ router.post('/register', async (req, res) => {
         gender, disability, manifesto, is_verified, created_at, updated_at
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)`,
       [
-        userId, username, passwordHash, fullName, email, phoneNumber, role || 'voter',
+        userId, username, passwordHash, fullName, normalizedEmail, phoneNumber, normalizedRole,
         regNo, faculty, course, subjectCombination, levelOfStudy, yearOfStudy,
         gender, disability, manifesto,
-        role === 'admin' ? true : shouldVerifyAutomatically,
+        normalizedRole === 'admin' ? true : shouldVerifyAutomatically,
         now, now
       ]
     );
 
     // Create candidate record if registering as candidate
-    if (role === 'candidate' && positionId) {
+    if (normalizedRole === 'candidate' && positionId) {
       await query(
         `INSERT INTO candidates (candidate_id, position_id, user_id, manifesto, created_at)
          VALUES ($1, $2, $3, $4, $5)`,
@@ -76,8 +192,10 @@ router.post('/register', async (req, res) => {
       );
     }
 
+    verificationCodeManager.clearRegistrationVerified(normalizedEmail);
+
     // Generate token
-    const token = generateToken(userId, role || 'voter');
+    const token = generateToken(userId, normalizedRole);
 
     // Fetch user data
     const user = await getUserById(userId);
@@ -93,7 +211,7 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// Login endpoint
+// Login endpoint (sends verification code to email)
 router.post('/login', async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -121,16 +239,87 @@ router.post('/login', async (req, res) => {
       return res.status(403).json({ error: 'Account is locked' });
     }
 
-    const token = generateToken(user.user_id, user.role);
+    const userEmail = normalizeEmail(user.email);
+    if (!userEmail) {
+      return res.status(400).json({ error: 'No email is configured for this account. Contact administrator.' });
+    }
 
+    // Generate verification code
+    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // Store code in memory manager
+    const codeStored = verificationCodeManager.storeCode(userEmail, verificationCode, 'login');
+    if (!codeStored) {
+      return res.status(500).json({ error: 'Could not prepare login verification code' });
+    }
+
+    // Send verification code to email
+    const emailSent = await emailService.sendVerificationCode(userEmail, verificationCode, 'login');
+
+    if (!emailSent) {
+      return res.status(500).json({ error: 'Failed to send login verification code. Please check email configuration.' });
+    }
+
+    // Return user info and userId for verification step
     res.json({
-      token,
+      message: 'Login credentials verified. Verification code sent to email.',
+      userId: user.user_id,
+      email: userEmail,
+      verificationCode: process.env.NODE_ENV === 'development' ? verificationCode : undefined,
       user: formatUserResponse(user)
     });
 
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ error: 'Login failed' });
+  }
+});
+
+// Verify login code
+router.post('/verify-login-code', async (req, res) => {
+  try {
+    const { email, code } = req.body;
+    const normalizedEmail = normalizeEmail(email);
+    const normalizedCode = (code || '').toString().trim();
+
+    if (!normalizedEmail || !normalizedCode) {
+      return res.status(400).json({ error: 'Email and code are required' });
+    }
+
+    // Verify the code
+    const isValid = verificationCodeManager.verifyCode(normalizedEmail, normalizedCode, 'login');
+
+    if (!isValid) {
+      return res.status(400).json({ error: 'Invalid or expired verification code' });
+    }
+
+    // Code is valid - delete it so it can't be reused
+    verificationCodeManager.deleteCode(normalizedEmail, 'login');
+
+    // Get user info
+    const userResult = await query(
+      'SELECT * FROM users WHERE LOWER(email) = $1',
+      [normalizedEmail]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const user = userResult.rows[0];
+
+    // Generate auth token
+    const token = generateToken(user.user_id, user.role);
+
+    res.json({
+      message: 'Login successful',
+      token,
+      user: formatUserResponse(user)
+    });
+
+  } catch (error) {
+    console.error('Verify login code error:', error);
+    res.status(500).json({ error: 'Code verification failed' });
   }
 });
 
@@ -148,72 +337,91 @@ router.get('/me', authenticateToken, async (req, res) => {
   }
 });
 
-// Send password reset code
-router.post('/send-reset-code', async (req, res) => {
+// Send password reset code (email)
+router.post('/send-password-reset-code', async (req, res) => {
   try {
-    const { phoneNumber } = req.body;
+    const { email } = req.body;
+    const normalizedEmail = normalizeEmail(email);
 
-    if (!phoneNumber) {
-      return res.status(400).json({ error: 'Phone number is required' });
+    if (!normalizedEmail) {
+      return res.status(400).json({ error: 'Email is required' });
     }
 
-    // In production, send SMS via service like Twilio
-    // For now, generate and store in DB
-    const resetCode = Math.random().toString().substring(2, 8);
-    const resetId = uuidv4();
-    const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
-
-    await query(
-      `INSERT INTO password_reset_codes (id, phone_number, code, expires_at, created_at)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [resetId, phoneNumber, resetCode, expiresAt, Date.now()]
+    // Check if user exists with this email
+    const userResult = await query(
+      'SELECT user_id, email FROM users WHERE LOWER(email) = $1',
+      [normalizedEmail]
     );
 
-    // TODO: Send SMS to phoneNumber with resetCode
-    console.log(`Reset code for ${phoneNumber}: ${resetCode}`);
+    if (userResult.rows.length === 0) {
+      // Don't reveal if email exists for security
+      return res.status(400).json({ error: 'Email not found' });
+    }
 
-    res.json({ message: 'Reset code sent' });
+    // Generate verification code
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // Store code in memory manager
+    const codeStored = verificationCodeManager.storeCode(normalizedEmail, code, 'password_reset');
+    if (!codeStored) {
+      return res.status(500).json({ error: 'Could not prepare reset code' });
+    }
+
+    // Send email
+    const emailSent = await emailService.sendVerificationCode(normalizedEmail, code, 'password_reset');
+
+    if (!emailSent) {
+      return res.status(500).json({ error: 'Failed to send reset code. Please check email configuration.' });
+    }
+
+    res.json({ 
+      message: 'Password reset code sent to email',
+      email: normalizedEmail
+    });
 
   } catch (error) {
-    console.error('Reset code error:', error);
+    console.error('Send password reset code error:', error);
     res.status(500).json({ error: 'Failed to send reset code' });
   }
 });
 
-// Verify reset code
-router.post('/verify-reset-code', async (req, res) => {
+// Verify password reset code
+router.post('/verify-password-reset-code', async (req, res) => {
   try {
-    const { phoneNumber, code } = req.body;
+    const { email, code } = req.body;
+    const normalizedEmail = normalizeEmail(email);
+    const normalizedCode = (code || '').toString().trim();
 
-    if (!phoneNumber || !code) {
-      return res.status(400).json({ error: 'Phone number and code are required' });
+    if (!normalizedEmail || !normalizedCode) {
+      return res.status(400).json({ error: 'Email and code are required' });
     }
 
-    const result = await query(
-      `SELECT * FROM password_reset_codes 
-       WHERE phone_number = $1 AND code = $2 AND expires_at > $3
-       ORDER BY created_at DESC LIMIT 1`,
-      [phoneNumber, code, Date.now()]
-    );
+    // Verify the code
+    const isValid = verificationCodeManager.verifyCode(normalizedEmail, normalizedCode, 'password_reset');
 
-    if (result.rows.length === 0) {
-      return res.status(400).json({ error: 'Invalid or expired code' });
+    if (!isValid) {
+      return res.status(400).json({ error: 'Invalid or expired verification code' });
     }
 
-    res.json({ message: 'Code verified' });
+    res.json({ 
+      message: 'Verification code is valid. You can now reset your password.',
+      email: normalizedEmail
+    });
 
   } catch (error) {
-    console.error('Verify code error:', error);
+    console.error('Verify password reset code error:', error);
     res.status(500).json({ error: 'Code verification failed' });
   }
 });
 
-// Reset password with code
+// Reset password (after verification)
 router.post('/reset-password', async (req, res) => {
   try {
-    const { phoneNumber, code, newPassword, confirmPassword } = req.body;
+    const { email, code, newPassword, confirmPassword } = req.body;
+    const normalizedEmail = normalizeEmail(email);
+    const normalizedCode = (code || '').toString().trim();
 
-    if (!phoneNumber || !code || !newPassword || !confirmPassword) {
+    if (!normalizedEmail || !normalizedCode || !newPassword || !confirmPassword) {
       return res.status(400).json({ error: 'All fields are required' });
     }
 
@@ -221,21 +429,17 @@ router.post('/reset-password', async (req, res) => {
       return res.status(400).json({ error: 'Passwords do not match' });
     }
 
-    // Verify code
-    const codeResult = await query(
-      `SELECT * FROM password_reset_codes 
-       WHERE phone_number = $1 AND code = $2 AND expires_at > $3`,
-      [phoneNumber, code, Date.now()]
-    );
+    // Verify code one more time
+    const isValid = verificationCodeManager.verifyCode(normalizedEmail, normalizedCode, 'password_reset');
 
-    if (codeResult.rows.length === 0) {
-      return res.status(400).json({ error: 'Invalid or expired code' });
+    if (!isValid) {
+      return res.status(400).json({ error: 'Invalid or expired verification code' });
     }
 
-    // Find user by phone
+    // Find user by email
     const userResult = await query(
-      'SELECT user_id FROM users WHERE phone_number = $1',
-      [phoneNumber]
+      'SELECT user_id FROM users WHERE LOWER(email) = $1',
+      [normalizedEmail]
     );
 
     if (userResult.rows.length === 0) {
@@ -252,10 +456,128 @@ router.post('/reset-password', async (req, res) => {
     );
 
     // Delete used reset code
-    await query(
-      'DELETE FROM password_reset_codes WHERE phone_number = $1 AND code = $2',
-      [phoneNumber, code]
+    verificationCodeManager.deleteCode(normalizedEmail, 'password_reset');
+
+    res.json({ message: 'Password reset successfully' });
+
+  } catch (error) {
+    console.error('Password reset error:', error);
+    res.status(500).json({ error: 'Password reset failed' });
+  }
+});
+
+// Send password reset code (DEPRECATED - kept for backward compatibility)
+router.post('/send-reset-code', async (req, res) => {
+  try {
+    const { phoneNumber } = req.body;
+
+    if (!phoneNumber) {
+      return res.status(400).json({ error: 'Phone number is required' });
+    }
+
+    // Find user by phone
+    const userResult = await query(
+      'SELECT email FROM users WHERE phone_number = $1',
+      [phoneNumber]
     );
+
+    if (userResult.rows.length === 0) {
+      return res.status(400).json({ error: 'Phone number not found' });
+    }
+
+    const email = userResult.rows[0].email;
+
+    // Generate code  
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    
+    // Store code
+    verificationCodeManager.storeCode(email, code, 'password_reset');
+
+    // Send email
+    const emailSent = await emailService.sendVerificationCode(email, code, 'password_reset');
+
+    if (!emailSent) {
+      return res.status(500).json({ error: 'Failed to send reset code' });
+    }
+
+    res.json({ message: 'Reset code sent to email associated with phone number' });
+
+  } catch (error) {
+    console.error('Reset code error:', error);
+    res.status(500).json({ error: 'Failed to send reset code' });
+  }
+});
+
+// Verify reset code (DEPRECATED - kept for backward compatibility)
+router.post('/verify-reset-code', async (req, res) => {
+  try {
+    const { phoneNumber, code } = req.body;
+
+    if (!phoneNumber || !code) {
+      return res.status(400).json({ error: 'Phone number and code are required' });
+    }
+
+    // Find user by phone
+    const userResult = await query(
+      'SELECT email FROM users WHERE phone_number = $1',
+      [phoneNumber]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(400).json({ error: 'Phone number not found' });
+    }
+
+    const email = userResult.rows[0].email;
+
+    // Verify code
+    const isValid = verificationCodeManager.verifyCode(email, code, 'password_reset');
+
+    if (!isValid) {
+      return res.status(400).json({ error: 'Invalid or expired code' });
+    }
+
+    res.json({ message: 'Code verified' });
+
+  } catch (error) {
+    console.error('Verify code error:', error);
+    res.status(500).json({ error: 'Code verification failed' });
+  }
+});
+
+// Reset password with code (DEPRECATED - kept for backward compatibility)
+router.post('/reset-password-deprecated', async (req, res) => {
+  try {
+    const { phoneNumber, code, newPassword, confirmPassword } = req.body;
+
+    if (!phoneNumber || !code || !newPassword || !confirmPassword) {
+      return res.status(400).json({ error: 'All fields are required' });
+    }
+
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({ error: 'Passwords do not match' });
+    }
+
+    // Find user by phone
+    const userResult = await query(
+      'SELECT user_id, email FROM users WHERE phone_number = $1',
+      [phoneNumber]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const user = userResult.rows[0];
+    const passwordHash = await bcryptjs.hash(newPassword, 12);
+
+    // Update password
+    await query(
+      'UPDATE users SET password_hash = $1, updated_at = $2 WHERE user_id = $3',
+      [passwordHash, Date.now(), user.user_id]
+    );
+
+    // Delete used reset code
+    verificationCodeManager.deleteCode(user.email, 'password_reset');
 
     res.json({ message: 'Password reset successfully' });
 
