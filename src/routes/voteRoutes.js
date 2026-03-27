@@ -113,8 +113,7 @@ router.post('/candidates', authenticateToken, async (req, res) => {
   }
 });
 
-// Verify candidate (admin only)
-router.patch('/candidates/:id/verify', authenticateToken, requireRole('admin'), async (req, res) => {
+async function verifyCandidateHandler(req, res) {
   try {
     const { verified } = req.body;
 
@@ -139,6 +138,29 @@ router.patch('/candidates/:id/verify', authenticateToken, requireRole('admin'), 
   } catch (error) {
     console.error('Error verifying candidate:', error);
     res.status(500).json({ error: 'Failed to verify candidate' });
+  }
+}
+
+// Verify candidate (admin only)
+router.patch('/candidates/:id/verify', authenticateToken, requireRole('admin'), verifyCandidateHandler);
+router.put('/candidates/:id/verify', authenticateToken, requireRole('admin'), verifyCandidateHandler);
+
+// Delete candidate (admin only)
+router.delete('/candidates/:id', authenticateToken, requireRole('admin'), async (req, res) => {
+  try {
+    const result = await query(
+      'DELETE FROM candidates WHERE candidate_id = $1 RETURNING candidate_id',
+      [req.params.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Candidate not found' });
+    }
+
+    res.json({ message: 'Candidate deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting candidate:', error);
+    res.status(500).json({ error: 'Failed to delete candidate' });
   }
 });
 
@@ -242,8 +264,58 @@ router.post('/votes', authenticateToken, async (req, res) => {
   }
 });
 
-// Get vote results for election
-router.get('/votes/results/:electionId', async (req, res) => {
+// Get vote receipts for current user
+router.get('/votes/receipts', authenticateToken, async (req, res) => {
+  try {
+    const result = await query(`
+      SELECT
+        v.vote_id,
+        e.title AS election_title,
+        p.name AS position_name,
+        u.full_name AS candidate_name,
+        v.created_at,
+        v.vote_hash
+      FROM votes v
+      LEFT JOIN elections e ON v.election_id = e.election_id
+      LEFT JOIN positions p ON v.position_id = p.position_id
+      LEFT JOIN candidates c ON v.candidate_id = c.candidate_id
+      LEFT JOIN users u ON c.user_id = u.user_id
+      WHERE v.voter_id = $1
+      ORDER BY v.created_at DESC
+    `, [req.userId]);
+
+    const receipts = result.rows.map(row => ({
+      voteId: row.vote_id,
+      electionTitle: row.election_title,
+      positionName: row.position_name,
+      candidateName: row.candidate_name,
+      timestamp: row.created_at,
+      hash: row.vote_hash
+    }));
+
+    res.json(receipts);
+  } catch (error) {
+    console.error('Error fetching vote receipts:', error);
+    res.status(500).json({ error: 'Failed to fetch vote receipts' });
+  }
+});
+
+// Check whether current user has voted in an election
+router.get('/votes/check/:electionId', authenticateToken, async (req, res) => {
+  try {
+    const result = await query(
+      'SELECT COUNT(*)::int AS count FROM votes WHERE election_id = $1 AND voter_id = $2',
+      [req.params.electionId, req.userId]
+    );
+
+    res.json({ hasVoted: (result.rows[0]?.count || 0) > 0 });
+  } catch (error) {
+    console.error('Error checking vote status:', error);
+    res.status(500).json({ error: 'Failed to check vote status' });
+  }
+});
+
+async function getElectionResultsHandler(req, res) {
   try {
     const electionResult = await query(
       'SELECT * FROM elections WHERE election_id = $1',
@@ -310,7 +382,11 @@ router.get('/votes/results/:electionId', async (req, res) => {
     console.error('Error fetching results:', error);
     res.status(500).json({ error: 'Failed to fetch results' });
   }
-});
+}
+
+// Get vote results for election
+router.get('/votes/results/:electionId', getElectionResultsHandler);
+router.get('/elections/:electionId/results', getElectionResultsHandler);
 
 function formatCandidateResponse(candidate) {
   return {

@@ -91,6 +91,26 @@ router.get('/elections', async (req, res) => {
   }
 });
 
+// Get open elections
+router.get('/elections/open', async (req, res) => {
+  try {
+    const now = Date.now();
+    const result = await query(`
+      SELECT e.*, p.name as position_name
+      FROM elections e
+      LEFT JOIN positions p ON e.position_id = p.position_id
+      WHERE e.status = 'open' AND e.start_date <= $1 AND e.end_date >= $1
+      ORDER BY e.end_date ASC
+    `, [now]);
+
+    const elections = result.rows.map(e => formatElectionResponse(e));
+    res.json(elections);
+  } catch (error) {
+    console.error('Error fetching open elections:', error);
+    res.status(500).json({ error: 'Failed to fetch open elections' });
+  }
+});
+
 // Get election by ID
 router.get('/elections/:id', async (req, res) => {
   try {
@@ -146,8 +166,7 @@ router.post('/elections', authenticateToken, requireRole('admin'), async (req, r
   }
 });
 
-// Update election status (admin only)
-router.patch('/elections/:id/status', authenticateToken, requireRole('admin'), async (req, res) => {
+async function updateElectionStatusHandler(req, res) {
   try {
     const { status } = req.body;
     const validStatuses = ['draft', 'open', 'closed'];
@@ -178,7 +197,11 @@ router.patch('/elections/:id/status', authenticateToken, requireRole('admin'), a
     console.error('Error updating election:', error);
     res.status(500).json({ error: 'Failed to update election' });
   }
-});
+}
+
+// Update election status (admin only)
+router.patch('/elections/:id/status', authenticateToken, requireRole('admin'), updateElectionStatusHandler);
+router.put('/elections/:id/status', authenticateToken, requireRole('admin'), updateElectionStatusHandler);
 
 // Get faculties
 router.get('/data/faculties', async (req, res) => {
@@ -220,6 +243,26 @@ router.get('/data/courses', async (req, res) => {
   }
 });
 
+// Get courses by faculty ID (path-style alias)
+router.get('/data/courses/faculty/:facultyId', async (req, res) => {
+  try {
+    const result = await query(
+      'SELECT * FROM courses WHERE faculty_id = $1 ORDER BY name',
+      [req.params.facultyId]
+    );
+
+    const courses = result.rows.map(c => ({
+      courseId: c.course_id,
+      facultyId: c.faculty_id,
+      name: c.name
+    }));
+    res.json(courses);
+  } catch (error) {
+    console.error('Error fetching courses by faculty:', error);
+    res.status(500).json({ error: 'Failed to fetch courses' });
+  }
+});
+
 // Get subject combinations for a course
 router.get('/data/subject-combinations', async (req, res) => {
   try {
@@ -242,6 +285,250 @@ router.get('/data/subject-combinations', async (req, res) => {
   } catch (error) {
     console.error('Error fetching subject combinations:', error);
     res.status(500).json({ error: 'Failed to fetch subject combinations' });
+  }
+});
+
+// Subject combinations aliases expected by Android client
+router.get('/data/subjects', async (req, res) => {
+  try {
+    const result = await query('SELECT * FROM subject_combinations ORDER BY name');
+    const combinations = result.rows.map(c => ({
+      id: c.id,
+      courseId: c.course_id,
+      name: c.name
+    }));
+    res.json(combinations);
+  } catch (error) {
+    console.error('Error fetching subjects:', error);
+    res.status(500).json({ error: 'Failed to fetch subjects' });
+  }
+});
+
+router.get('/data/subjects/course/:courseId', async (req, res) => {
+  try {
+    const result = await query(
+      'SELECT * FROM subject_combinations WHERE course_id = $1 ORDER BY name',
+      [req.params.courseId]
+    );
+    const combinations = result.rows.map(c => ({
+      id: c.id,
+      courseId: c.course_id,
+      name: c.name
+    }));
+    res.json(combinations);
+  } catch (error) {
+    console.error('Error fetching subjects by course:', error);
+    res.status(500).json({ error: 'Failed to fetch subjects' });
+  }
+});
+
+// Create faculty (admin only)
+router.post('/data/faculties', authenticateToken, requireRole('admin'), async (req, res) => {
+  try {
+    const { name } = req.body;
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: 'Faculty name is required' });
+    }
+
+    const facultyId = uuidv4();
+    await query(
+      'INSERT INTO faculties (faculty_id, name, created_at) VALUES ($1, $2, $3)',
+      [facultyId, name.trim(), Date.now()]
+    );
+
+    res.status(201).json({ facultyId, name: name.trim() });
+  } catch (error) {
+    if (error.code === '23505') {
+      return res.status(400).json({ error: 'Faculty already exists' });
+    }
+    console.error('Error creating faculty:', error);
+    res.status(500).json({ error: 'Failed to create faculty' });
+  }
+});
+
+// Update faculty (admin only)
+router.put('/data/faculties/:id', authenticateToken, requireRole('admin'), async (req, res) => {
+  try {
+    const { name } = req.body;
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: 'Faculty name is required' });
+    }
+
+    const result = await query(
+      'UPDATE faculties SET name = $1 WHERE faculty_id = $2 RETURNING faculty_id',
+      [name.trim(), req.params.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Faculty not found' });
+    }
+
+    res.json({ message: 'Faculty updated successfully' });
+  } catch (error) {
+    if (error.code === '23505') {
+      return res.status(400).json({ error: 'Faculty already exists' });
+    }
+    console.error('Error updating faculty:', error);
+    res.status(500).json({ error: 'Failed to update faculty' });
+  }
+});
+
+// Delete faculty (admin only)
+router.delete('/data/faculties/:id', authenticateToken, requireRole('admin'), async (req, res) => {
+  try {
+    const result = await query(
+      'DELETE FROM faculties WHERE faculty_id = $1 RETURNING faculty_id',
+      [req.params.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Faculty not found' });
+    }
+
+    res.json({ message: 'Faculty deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting faculty:', error);
+    res.status(500).json({ error: 'Failed to delete faculty' });
+  }
+});
+
+// Create course (admin only)
+router.post('/data/courses', authenticateToken, requireRole('admin'), async (req, res) => {
+  try {
+    const { facultyId, name } = req.body;
+    if (!facultyId || !name || !name.trim()) {
+      return res.status(400).json({ error: 'Faculty ID and course name are required' });
+    }
+
+    const courseId = uuidv4();
+    await query(
+      'INSERT INTO courses (course_id, faculty_id, name, created_at) VALUES ($1, $2, $3, $4)',
+      [courseId, facultyId, name.trim(), Date.now()]
+    );
+
+    res.status(201).json({ courseId, facultyId, name: name.trim() });
+  } catch (error) {
+    if (error.code === '23505') {
+      return res.status(400).json({ error: 'Course already exists' });
+    }
+    console.error('Error creating course:', error);
+    res.status(500).json({ error: 'Failed to create course' });
+  }
+});
+
+// Update course (admin only)
+router.put('/data/courses/:id', authenticateToken, requireRole('admin'), async (req, res) => {
+  try {
+    const { facultyId, name } = req.body;
+    if (!facultyId || !name || !name.trim()) {
+      return res.status(400).json({ error: 'Faculty ID and course name are required' });
+    }
+
+    const result = await query(
+      'UPDATE courses SET faculty_id = $1, name = $2 WHERE course_id = $3 RETURNING course_id',
+      [facultyId, name.trim(), req.params.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Course not found' });
+    }
+
+    res.json({ message: 'Course updated successfully' });
+  } catch (error) {
+    if (error.code === '23505') {
+      return res.status(400).json({ error: 'Course already exists' });
+    }
+    console.error('Error updating course:', error);
+    res.status(500).json({ error: 'Failed to update course' });
+  }
+});
+
+// Delete course (admin only)
+router.delete('/data/courses/:id', authenticateToken, requireRole('admin'), async (req, res) => {
+  try {
+    const result = await query(
+      'DELETE FROM courses WHERE course_id = $1 RETURNING course_id',
+      [req.params.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Course not found' });
+    }
+
+    res.json({ message: 'Course deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting course:', error);
+    res.status(500).json({ error: 'Failed to delete course' });
+  }
+});
+
+// Create subject (admin only)
+router.post('/data/subjects', authenticateToken, requireRole('admin'), async (req, res) => {
+  try {
+    const { courseId, name } = req.body;
+    if (!courseId || !name || !name.trim()) {
+      return res.status(400).json({ error: 'Course ID and subject name are required' });
+    }
+
+    const id = uuidv4();
+    await query(
+      'INSERT INTO subject_combinations (id, course_id, name, created_at) VALUES ($1, $2, $3, $4)',
+      [id, courseId, name.trim(), Date.now()]
+    );
+
+    res.status(201).json({ id, courseId, name: name.trim() });
+  } catch (error) {
+    if (error.code === '23505') {
+      return res.status(400).json({ error: 'Subject combination already exists' });
+    }
+    console.error('Error creating subject:', error);
+    res.status(500).json({ error: 'Failed to create subject' });
+  }
+});
+
+// Update subject (admin only)
+router.put('/data/subjects/:id', authenticateToken, requireRole('admin'), async (req, res) => {
+  try {
+    const { courseId, name } = req.body;
+    if (!courseId || !name || !name.trim()) {
+      return res.status(400).json({ error: 'Course ID and subject name are required' });
+    }
+
+    const result = await query(
+      'UPDATE subject_combinations SET course_id = $1, name = $2 WHERE id = $3 RETURNING id',
+      [courseId, name.trim(), req.params.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Subject not found' });
+    }
+
+    res.json({ message: 'Subject updated successfully' });
+  } catch (error) {
+    if (error.code === '23505') {
+      return res.status(400).json({ error: 'Subject combination already exists' });
+    }
+    console.error('Error updating subject:', error);
+    res.status(500).json({ error: 'Failed to update subject' });
+  }
+});
+
+// Delete subject (admin only)
+router.delete('/data/subjects/:id', authenticateToken, requireRole('admin'), async (req, res) => {
+  try {
+    const result = await query(
+      'DELETE FROM subject_combinations WHERE id = $1 RETURNING id',
+      [req.params.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Subject not found' });
+    }
+
+    res.json({ message: 'Subject deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting subject:', error);
+    res.status(500).json({ error: 'Failed to delete subject' });
   }
 });
 

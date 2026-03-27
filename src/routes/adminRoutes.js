@@ -32,8 +32,74 @@ router.get('/admin/users/role/:role', authenticateToken, requireRole('admin'), a
   }
 });
 
-// Verify/unverify user
-router.patch('/admin/users/:id/verify', authenticateToken, requireRole('admin'), async (req, res) => {
+// Update user details (admin only)
+router.put('/admin/users/:id', authenticateToken, requireRole('admin'), async (req, res) => {
+  try {
+    const {
+      fullName,
+      email,
+      phoneNumber,
+      regNo,
+      faculty,
+      course,
+      subjectCombination,
+      levelOfStudy,
+      yearOfStudy,
+      gender,
+      disability,
+      manifesto,
+      role
+    } = req.body;
+
+    const result = await query(
+      `UPDATE users
+       SET full_name = COALESCE($1, full_name),
+           email = COALESCE($2, email),
+           phone_number = COALESCE($3, phone_number),
+           reg_no = COALESCE($4, reg_no),
+           faculty = COALESCE($5, faculty),
+           course = COALESCE($6, course),
+           subject_combination = COALESCE($7, subject_combination),
+           level_of_study = COALESCE($8, level_of_study),
+           year_of_study = COALESCE($9, year_of_study),
+           gender = COALESCE($10, gender),
+           disability = COALESCE($11, disability),
+           manifesto = COALESCE($12, manifesto),
+           role = COALESCE($13, role),
+           updated_at = $14
+       WHERE user_id = $15
+       RETURNING *`,
+      [
+        fullName || null,
+        email ? email.toLowerCase() : null,
+        phoneNumber || null,
+        regNo || null,
+        faculty || null,
+        course || null,
+        subjectCombination || null,
+        levelOfStudy || null,
+        yearOfStudy || null,
+        gender || null,
+        disability || null,
+        manifesto || null,
+        role || null,
+        Date.now(),
+        req.params.id
+      ]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({ message: 'User updated successfully' });
+  } catch (error) {
+    console.error('Error updating user:', error);
+    res.status(500).json({ error: 'Failed to update user' });
+  }
+});
+
+async function verifyUserHandler(req, res) {
   try {
     const { verified } = req.body;
 
@@ -56,7 +122,11 @@ router.patch('/admin/users/:id/verify', authenticateToken, requireRole('admin'),
     console.error('Error updating user:', error);
     res.status(500).json({ error: 'Failed to update user' });
   }
-});
+}
+
+// Verify/unverify user
+router.patch('/admin/users/:id/verify', authenticateToken, requireRole('admin'), verifyUserHandler);
+router.put('/admin/users/:id/verify', authenticateToken, requireRole('admin'), verifyUserHandler);
 
 // Lock/unlock user account
 router.patch('/admin/users/:id/lock', authenticateToken, requireRole('admin'), async (req, res) => {
@@ -81,6 +151,44 @@ router.patch('/admin/users/:id/lock', authenticateToken, requireRole('admin'), a
   } catch (error) {
     console.error('Error updating user:', error);
     res.status(500).json({ error: 'Failed to update user' });
+  }
+});
+
+// Unlock user account (admin only)
+router.put('/admin/users/:id/unlock', authenticateToken, requireRole('admin'), async (req, res) => {
+  try {
+    const result = await query(
+      'UPDATE users SET is_locked = false, updated_at = $1 WHERE user_id = $2 RETURNING *',
+      [Date.now(), req.params.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({ message: 'User account unlocked' });
+  } catch (error) {
+    console.error('Error unlocking user:', error);
+    res.status(500).json({ error: 'Failed to unlock user' });
+  }
+});
+
+// Delete user (admin only)
+router.delete('/admin/users/:id', authenticateToken, requireRole('admin'), async (req, res) => {
+  try {
+    const result = await query(
+      'DELETE FROM users WHERE user_id = $1 RETURNING user_id',
+      [req.params.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({ message: 'User deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    res.status(500).json({ error: 'Failed to delete user' });
   }
 });
 
@@ -173,8 +281,7 @@ router.post('/admin/subject-combinations', authenticateToken, requireRole('admin
   }
 });
 
-// Get reports/statistics (admin only)
-router.get('/admin/reports', authenticateToken, requireRole('admin'), async (req, res) => {
+async function getReportsHandler(req, res) {
   try {
     // Count users by role
     const userCountResult = await query(`
@@ -219,7 +326,11 @@ router.get('/admin/reports', authenticateToken, requireRole('admin'), async (req
     console.error('Error fetching reports:', error);
     res.status(500).json({ error: 'Failed to fetch reports' });
   }
-});
+}
+
+// Get reports/statistics (admin only)
+router.get('/admin/reports', authenticateToken, requireRole('admin'), getReportsHandler);
+router.get('/reports', authenticateToken, requireRole('admin'), getReportsHandler);
 
 // Get election details with vote breakdown (admin only)
 router.get('/admin/elections/:id/details', authenticateToken, requireRole('admin'), async (req, res) => {
