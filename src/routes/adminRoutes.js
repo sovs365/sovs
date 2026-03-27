@@ -117,7 +117,7 @@ async function verifyUserHandler(req, res) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    res.json(formatUserResponse(result.rows[0]));
+    res.json({ message: 'User verification updated successfully' });
   } catch (error) {
     console.error('Error updating user:', error);
     res.status(500).json({ error: 'Failed to update user' });
@@ -297,30 +297,85 @@ async function getReportsHandler(req, res) {
     const electionCountResult = await query('SELECT COUNT(*) FROM elections');
     const totalElections = electionCountResult.rows[0].count;
 
+    // Count active elections
+    const activeElectionCountResult = await query(
+      "SELECT COUNT(*) FROM elections WHERE status = 'open'"
+    );
+    const activeElections = Number(activeElectionCountResult.rows[0].count || 0);
+
     // Count total votes
     const voteCountResult = await query('SELECT COUNT(*) FROM votes');
-    const totalVotes = voteCountResult.rows[0].count;
+    const totalVotesCast = Number(voteCountResult.rows[0].count || 0);
 
-    // Get elections with vote counts
-    const electionsResult = await query(`
-      SELECT e.election_id, e.title, COUNT(v.vote_id) as vote_count
+    // Gender breakdown (all users)
+    const genderResult = await query(`
+      SELECT
+        COALESCE(SUM(CASE WHEN LOWER(gender) = 'male' THEN 1 ELSE 0 END), 0) AS male,
+        COALESCE(SUM(CASE WHEN LOWER(gender) = 'female' THEN 1 ELSE 0 END), 0) AS female
+      FROM users
+    `);
+
+    // Candidate gender breakdown
+    const candidateGenderResult = await query(`
+      SELECT
+        COALESCE(SUM(CASE WHEN LOWER(gender) = 'male' THEN 1 ELSE 0 END), 0) AS male,
+        COALESCE(SUM(CASE WHEN LOWER(gender) = 'female' THEN 1 ELSE 0 END), 0) AS female
+      FROM users
+      WHERE role = 'candidate'
+    `);
+
+    // Users with disability declared
+    const disabilityResult = await query(`
+      SELECT COUNT(*) AS count
+      FROM users
+      WHERE disability IS NOT NULL AND TRIM(disability) <> ''
+    `);
+
+    // Voter turnout per election
+    const turnoutResult = await query(`
+      SELECT
+        e.election_id,
+        e.title AS election_title,
+        COUNT(DISTINCT v.voter_id) AS total_voted
       FROM elections e
       LEFT JOIN votes v ON e.election_id = v.election_id
       GROUP BY e.election_id, e.title
       ORDER BY e.created_at DESC
     `);
 
+    const totalEligibleVoters = Number(userCounts.voter || 0);
+    const voterTurnoutPerElection = turnoutResult.rows.map(row => {
+      const totalVoted = Number(row.total_voted || 0);
+      const turnoutPercentage = totalEligibleVoters > 0
+        ? Number(((totalVoted / totalEligibleVoters) * 100).toFixed(2))
+        : 0;
+
+      return {
+        electionId: row.election_id,
+        electionTitle: row.election_title,
+        totalEligible: totalEligibleVoters,
+        totalVoted: totalVoted,
+        turnoutPercentage: turnoutPercentage
+      };
+    });
+
     res.json({
-      totalVoters: userCounts.voter || 0,
-      totalCandidates: userCounts.candidate || 0,
-      totalAdmins: userCounts.admin || 0,
-      totalElections,
-      totalVotes,
-      elections: electionsResult.rows.map(e => ({
-        electionId: e.election_id,
-        title: e.title,
-        voteCount: e.vote_count
-      }))
+      totalVoters: Number(userCounts.voter || 0),
+      totalCandidates: Number(userCounts.candidate || 0),
+      totalAdmins: Number(userCounts.admin || 0),
+      totalElections: Number(totalElections || 0),
+      activeElections,
+      totalVotesCast,
+      genderBreakdown: {
+        male: Number(genderResult.rows[0]?.male || 0),
+        female: Number(genderResult.rows[0]?.female || 0)
+      },
+      candidateGenderBreakdown: {
+        male: Number(candidateGenderResult.rows[0]?.male || 0),
+        female: Number(candidateGenderResult.rows[0]?.female || 0)
+      },
+      disabilityCount: Number(disabilityResult.rows[0]?.count || 0),
+      voterTurnoutPerElection
     });
   } catch (error) {
     console.error('Error fetching reports:', error);

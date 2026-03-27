@@ -91,6 +91,27 @@ router.get('/elections', async (req, res) => {
   }
 });
 
+// Get positions associated with a specific election
+router.get('/positions/election/:electionId', async (req, res) => {
+  try {
+    const result = await query(`
+      SELECT p.*
+      FROM elections e
+      LEFT JOIN positions p ON e.position_id = p.position_id
+      WHERE e.election_id = $1
+    `, [req.params.electionId]);
+
+    const positions = result.rows
+      .filter(p => p && p.position_id)
+      .map(p => formatPositionResponse(p));
+
+    res.json(positions);
+  } catch (error) {
+    console.error('Error fetching positions for election:', error);
+    res.status(500).json({ error: 'Failed to fetch positions for election' });
+  }
+});
+
 // Get open elections
 router.get('/elections/open', async (req, res) => {
   try {
@@ -159,7 +180,10 @@ router.post('/elections', authenticateToken, requireRole('admin'), async (req, r
       [electionId]
     );
 
-    res.status(201).json(formatElectionResponse(result.rows[0]));
+    res.status(201).json({
+      message: 'Election created successfully',
+      election: formatElectionResponse(result.rows[0])
+    });
   } catch (error) {
     console.error('Error creating election:', error);
     res.status(500).json({ error: 'Failed to create election' });
@@ -192,7 +216,10 @@ async function updateElectionStatusHandler(req, res) {
       return res.status(404).json({ error: 'Election not found' });
     }
 
-    res.json(formatElectionResponse(result.rows[0]));
+    res.json({
+      message: 'Election status updated successfully',
+      election: formatElectionResponse(result.rows[0])
+    });
   } catch (error) {
     console.error('Error updating election:', error);
     res.status(500).json({ error: 'Failed to update election' });

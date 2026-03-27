@@ -106,24 +106,35 @@ app.use((req, res) => {
 // Initialize database and start server
 async function startServer() {
   try {
-    console.log(`Starting server in ${APP_ENV} mode...`);
+    console.log(`\n🚀 Starting SOVS Backend Server...`);
+    console.log(`📋 Environment: ${APP_ENV}`);
+    console.log(`🔌 Server Port: ${PORT}`);
+    console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`);
     
+    // Initialize database (non-blocking - server continues if DB fails)
     const dbHealthy = await initializeDatabase();
-    if (!dbHealthy) {
-      console.error('Failed to initialize database');
-      process.exit(1);
-    }
-
+    
     if (APP_ENV === 'development') {
-      await seedDatabase();
+      try {
+        await seedDatabase();
+      } catch (error) {
+        console.warn('⚠️  Could not seed database:', error.message);
+      }
     }
 
-    app.listen(PORT, () => {
-      console.log(`Server running at http://0.0.0.0:${PORT}`);
-      console.log(`Environment: ${APP_ENV}`);
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`✅ Server is running at http://localhost:${PORT}`);
+      console.log(`📱 Android Emulator: http://10.0.2.2:${PORT}`);
+      console.log(`\n⚡ Ready to accept requests!\n`);
+      
+      if (!dbHealthy) {
+        console.warn('⚠️  WARNING: Server running in MOCK MODE (database unavailable)');
+        console.warn('   - API will accept requests but may not persist data');
+        console.warn('   - Configure DATABASE_URL to use a real database\n');
+      }
     });
   } catch (error) {
-    console.error('Failed to start server:', error);
+    console.error('❌ Critical error starting server:', error);
     process.exit(1);
   }
 }

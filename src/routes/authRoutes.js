@@ -337,6 +337,54 @@ router.get('/me', authenticateToken, async (req, res) => {
   }
 });
 
+// Update current user profile
+router.put('/me', authenticateToken, async (req, res) => {
+  try {
+    const {
+      fullName,
+      email,
+      phoneNumber,
+      manifesto
+    } = req.body;
+
+    const normalizedEmail = email ? normalizeEmail(email) : null;
+    if (normalizedEmail && !isValidEmail(normalizedEmail)) {
+      return res.status(400).json({ error: 'Invalid email format' });
+    }
+
+    const result = await query(
+      `UPDATE users
+       SET full_name = COALESCE($1, full_name),
+           email = COALESCE($2, email),
+           phone_number = COALESCE($3, phone_number),
+           manifesto = COALESCE($4, manifesto),
+           updated_at = $5
+       WHERE user_id = $6
+       RETURNING *`,
+      [
+        fullName || null,
+        normalizedEmail || null,
+        phoneNumber || null,
+        manifesto || null,
+        Date.now(),
+        req.userId
+      ]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({
+      message: 'Profile updated successfully',
+      user: formatUserResponse(result.rows[0])
+    });
+  } catch (error) {
+    console.error('Error updating profile:', error);
+    res.status(500).json({ error: 'Failed to update profile' });
+  }
+});
+
 // Send password reset code (email)
 router.post('/send-password-reset-code', async (req, res) => {
   try {

@@ -134,7 +134,7 @@ async function verifyCandidateHandler(req, res) {
       return res.status(404).json({ error: 'Candidate not found' });
     }
 
-    res.json(formatCandidateResponse(result.rows[0]));
+    res.json({ message: 'Candidate verification updated successfully' });
   } catch (error) {
     console.error('Error verifying candidate:', error);
     res.status(500).json({ error: 'Failed to verify candidate' });
@@ -361,7 +361,7 @@ async function getElectionResultsHandler(req, res) {
         candidateId: row.candidate_id,
         candidateName: row.full_name,
         votes: row.count,
-        percentage: totalVotes > 0 ? (row.count / totalVotes * 100).toFixed(2) : 0
+        percentage: totalVotes > 0 ? Number((row.count / totalVotes * 100).toFixed(2)) : 0
       }));
 
       positions.push({

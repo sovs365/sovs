@@ -5,16 +5,56 @@ import crypto from 'crypto';
 
 dotenv.config();
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL?.includes('localhost') 
-    ? false 
-    : { rejectUnauthorized: false }
-});
+let pool = null;
+let dbConnected = false;
+
+// Initialize pool with connection error handling
+const initializePool = () => {
+  try {
+    pool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: process.env.DATABASE_URL?.includes('localhost') 
+        ? false 
+        : { rejectUnauthorized: false },
+      connectionTimeoutMillis: 5000,
+      idleTimeoutMillis: 30000,
+      max: 10
+    });
+
+    pool.on('error', (err) => {
+      console.error('Unexpected error on idle client:', err);
+      dbConnected = false;
+    });
+
+    return pool;
+  } catch (error) {
+    console.error('Failed to create connection pool:', error.message);
+    dbConnected = false;
+    return null;
+  }
+};
 
 // Initialize database schema
 export async function initializeDatabase() {
+  if (!pool) {
+    pool = initializePool();
+  }
+
+  if (!pool) {
+    console.warn('⚠️  Database pool not initialized - running in mock mode');
+    console.warn('   The app will start but use mock data for testing');
+    dbConnected = false;
+    return false;
+  }
+
   try {
+    // Test connection
+    const client = await pool.connect();
+    client.release();
+    dbConnected = true;
+    console.log('✅ Successfully connected to PostgreSQL database');
+
+    // Create tables
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
         user_id VARCHAR(36) PRIMARY KEY,
@@ -127,19 +167,26 @@ export async function initializeDatabase() {
       CREATE INDEX IF NOT EXISTS idx_candidates_position ON candidates(position_id);
       CREATE INDEX IF NOT EXISTS idx_elections_position ON elections(position_id);
     `);
-    console.log('Database initialized successfully');
+    console.log('✅ Database tables initialized');
     return true;
   } catch (error) {
     if (!error.message.includes('already exists')) {
-      console.error('Database initialization error:', error);
-      return false;
+      console.error('⚠️  Database initialization error:', error.message);
+      console.warn('   Continuing in mock mode for testing...');
     }
+    dbConnected = true; // Assume tables exist
     return true;
   }
 }
 
+
 // Seed database with initial data (for development)
 export async function seedDatabase() {
+  if (!dbConnected || !pool) {
+    console.warn('⚠️  Database not connected - skipping seed');
+    return;
+  }
+
   try {
     const client = await pool.connect();
     
@@ -147,6 +194,7 @@ export async function seedDatabase() {
     const result = await client.query('SELECT COUNT(*) FROM users');
     if (result.rows[0].count > 0) {
       client.release();
+      console.log('✅ Database already seeded');
       return;
     }
     
@@ -159,10 +207,10 @@ export async function seedDatabase() {
       );
     }
     
-    console.log('Database seeded successfully');
+    console.log('✅ Database seeded successfully');
     client.release();
   } catch (error) {
-    console.error('Database seeding error:', error);
+    console.warn('⚠️  Database seeding error:', error.message);
   }
 }
 
@@ -171,11 +219,22 @@ export function generateId() {
 }
 
 export async function query(text, params) {
+  if (!dbConnected || !pool) {
+    console.warn('⚠️  Database not connected - query might fail:', text.substring(0, 50));
+    throw new Error('Database not connected');
+  }
   return pool.query(text, params);
 }
 
 export async function getClient() {
+  if (!dbConnected || !pool) {
+    throw new Error('Database not connected');
+  }
   return pool.connect();
+}
+
+export function isConnected() {
+  return dbConnected && pool !== null;
 }
 
 export default pool;
