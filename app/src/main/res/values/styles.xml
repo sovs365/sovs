@@ -1,0 +1,77 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Base application theme supporting Day/Night -->
+    <style name="Theme.UniversityVotingApp" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- Primary brand color. -->
+        <item name="colorPrimary">@color/primary</item>
+        <item name="colorPrimaryVariant">@color/primary_dark</item>
+        <item name="colorOnPrimary">@color/on_primary</item>
+        <!-- Secondary brand color. -->
+        <item name="colorSecondary">@color/secondary</item>
+        <item name="colorSecondaryVariant">@color/secondary_dark</item>
+        <item name="colorOnSecondary">@color/on_secondary</item>
+
+        <!-- Background and Surface -->
+        <item name="android:windowBackground">@color/background</item>
+        <item name="colorSurface">@color/surface</item>
+        <item name="colorError">@color/error</item>
+        <item name="colorOnBackground">@color/on_background</item>
+        <item name="colorOnSurface">@color/on_surface</item>
+
+        <!-- Status bar color. -->
+        <item name="android:statusBarColor">@color/background</item>
+
+        <!-- Dynamic text colors for visibility -->
+        <item name="android:textColorPrimary">@color/on_background</item>
+        <item name="android:textColorSecondary">@color/on_background_secondary</item>
+        <item name="android:editTextColor">@color/on_background</item>
+        <item name="android:textColorHint">@color/on_background_secondary</item>
+
+        <!-- Standardizing font visibility -->
+        <item name="android:fontFamily">sans-serif-medium</item>
+    </style>
+
+    <style name="Theme.UniversityVotingApp.NoActionBar" parent="Theme.UniversityVotingApp" />
+
+    <!-- Font Size Variants -->
+    <style name="Theme.UniversityVotingApp.Small" parent="Theme.UniversityVotingApp">
+        <item name="android:textSize">12sp</item>
+    </style>
+
+    <style name="Theme.UniversityVotingApp.Medium" parent="Theme.UniversityVotingApp">
+        <item name="android:textSize">16sp</item>
+    </style>
+
+    <style name="Theme.UniversityVotingApp.Large" parent="Theme.UniversityVotingApp">
+        <item name="android:textSize">20sp</item>
+    </style>
+
+    <!-- Font Type Variants -->
+    <style name="Theme.UniversityVotingApp.SansSerif" parent="Theme.UniversityVotingApp">
+        <item name="android:fontFamily">sans-serif</item>
+    </style>
+
+    <style name="Theme.UniversityVotingApp.Serif" parent="Theme.UniversityVotingApp">
+        <item name="android:fontFamily">serif</item>
+    </style>
+
+    <style name="Theme.UniversityVotingApp.Monospace" parent="Theme.UniversityVotingApp">
+        <item name="android:fontFamily">monospace</item>
+    </style>
+
+    <style name="CircleImage">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">50%</item>
+    </style>
+
+    <style name="ProfessionalButton" parent="Widget.Material3.Button">
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="shapeAppearance">@style/ShapeAppearance.Material3.MediumComponent</item>
+        <item name="android:paddingTop">12dp</item>
+        <item name="android:paddingBottom">12dp</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:textColor">@color/on_primary</item>
+    </style>
+
+</resources>

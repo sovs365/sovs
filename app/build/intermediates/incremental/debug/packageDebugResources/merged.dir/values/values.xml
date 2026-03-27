@@ -1,0 +1,189 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="year_of_study_array">
+        <item>First Year</item>
+        <item>Second Year</item>
+        <item>Third Year</item>
+        <item>Fourth Year</item>
+    </string-array>
+    <color name="background">#F0F2F5</color>
+    <color name="black">#FF000000</color>
+    <color name="card_background">#FFFFFF</color>
+    <color name="divider">#BDBDBD</color>
+    <color name="error">#B00020</color>
+    <color name="icon_tint">#6200EE</color>
+    <color name="input_background">#F5F5F5</color>
+    <color name="on_background">#000000</color>
+    <color name="on_background_secondary">#66000000</color>
+    <color name="on_error">#FFFFFF</color>
+    <color name="on_primary">#FFFFFF</color>
+    <color name="on_secondary">#000000</color>
+    <color name="on_surface">#000000</color>
+    <color name="primary">#6200EE</color>
+    <color name="primary_dark">#3700B3</color>
+    <color name="primary_variant">#3700B3</color>
+    <color name="purple_200">#FFBB86FC</color>
+    <color name="purple_500">#FF6200EE</color>
+    <color name="purple_700">#FF3700B3</color>
+    <color name="secondary">#03DAC6</color>
+    <color name="secondary_dark">#018786</color>
+    <color name="surface">#FFFFFF</color>
+    <color name="teal_200">#FF03DAC5</color>
+    <color name="teal_700">#FF018786</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="white_secondary">#B3FFFFFF</color>
+    <string name="accept_terms">I accept the terms and conditions</string>
+    <string name="admin">Admin</string>
+    <string name="admin_dashboard">Admin Dashboard</string>
+    <string name="admin_reports">Admin Reports</string>
+    <string name="admin_subtitle">Manage elections, users and reports</string>
+    <string name="age_gender_analytics">Age/Gender Analytics</string>
+    <string name="all_candidates">All Candidates</string>
+    <string name="all_men">All Men</string>
+    <string name="all_women">All Women</string>
+    <string name="already_have_account">Already have an account? Login</string>
+    <string name="app_logo_description">App logo</string>
+    <string name="app_name">SOVS</string>
+    <string name="app_slogan">Secure voting for everyone</string>
+    <string name="assisted_voting">Assisted Voting</string>
+    <string name="back">Back</string>
+    <string name="blockchain_verification">Blockchain Verification</string>
+    <string name="candidate">Candidate</string>
+    <string name="candidate_dashboard">Candidate Dashboard</string>
+    <string name="candidates">Candidates</string>
+    <string name="cast_vote">Cast Vote</string>
+    <string name="comparison">Candidate Comparison</string>
+    <string name="confirm_vote">Confirm Vote</string>
+    <string name="course">Course</string>
+    <string name="create_election">Create Election</string>
+    <string name="create_position">Create Position</string>
+    <string name="dark_mode">Dark Mode</string>
+    <string name="dashboard">Dashboard</string>
+    <string name="description">Description</string>
+    <string name="disability">Disability</string>
+    <string name="disability_analytics">Disability Analytics</string>
+    <string name="election">Election</string>
+    <string name="election_results">Election Results</string>
+    <string name="elections">Elections</string>
+    <string name="emergency_stop">Emergency Stop</string>
+    <string name="english">English</string>
+    <string name="faculty">Faculty</string>
+    <string name="female">Female</string>
+    <string name="female_candidates">Female Candidates</string>
+    <string name="full_name">Full Name</string>
+    <string name="full_name_label">Full name:</string>
+    <string name="gender">Gender</string>
+    <string name="geographic_distribution">Geographic Distribution</string>
+    <string name="go_to_login">Go to Login</string>
+    <string name="has_disability">Has Disability</string>
+    <string name="level_of_study">Level of Study</string>
+    <string name="live_tracking">Live Tracking</string>
+    <string name="login">Login</string>
+    <string name="logout">Logout</string>
+    <string name="male">Male</string>
+    <string name="male_candidates">Male Candidates</string>
+    <string name="manage_elections">Manage Elections</string>
+    <string name="manage_users">Manage Users</string>
+    <string name="manifesto">Manifesto</string>
+    <string name="men">Men</string>
+    <string name="multi_language">Multi-Language</string>
+    <string name="offline_mode">Offline Mode</string>
+    <string name="password">Password</string>
+    <string name="people_with_disability">People with Disability</string>
+    <string name="phone_label">Phone:</string>
+    <string name="phone_number">Phone number</string>
+    <string name="placeholder_screen">Placeholder screen</string>
+    <string name="position">Position</string>
+    <string name="position_name">Position name</string>
+    <string name="receipt">Vote Receipt</string>
+    <string name="reg_no">Registration Number</string>
+    <string name="register">Register</string>
+    <string name="registration_successful">Registration Successful</string>
+    <string name="reports">Reports</string>
+    <string name="results">Results</string>
+    <string name="role_label">Role:</string>
+    <string name="select_election">Select election</string>
+    <string name="select_position">Select position</string>
+    <string name="simulation">Election Simulation</string>
+    <string name="subject_combination">Subject Combination</string>
+    <string name="swahili">Swahili</string>
+    <string name="terms_conditions">Terms and Conditions</string>
+    <string name="title">Title</string>
+    <string name="upload_academic_clearance">Upload Academic Clearance</string>
+    <string name="upload_passport">Upload Passport Photo</string>
+    <string name="upload_school_id">Upload School ID</string>
+    <string name="upload_supporting_docs">Upload Supporting Docs</string>
+    <string name="username">Username</string>
+    <string name="username_label">Username:</string>
+    <string name="users">Users</string>
+    <string name="vote">Vote</string>
+    <string name="voter">Voter</string>
+    <string name="voter_dashboard">Voter Dashboard</string>
+    <string name="voter_education">Voter Education</string>
+    <string name="welcome_back">Welcome back</string>
+    <string name="welcome_message">Welcome to University Voting App</string>
+    <string name="women">Women</string>
+    <string name="year_of_study">Year of Study</string>
+    <style name="CircleImage">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">50%</item>
+    </style>
+    <style name="ProfessionalButton" parent="Widget.Material3.Button">
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="shapeAppearance">@style/ShapeAppearance.Material3.MediumComponent</item>
+        <item name="android:paddingTop">12dp</item>
+        <item name="android:paddingBottom">12dp</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:textColor">@color/on_primary</item>
+    </style>
+    <style name="Theme.UniversityVotingApp" parent="Theme.Material3.DayNight.NoActionBar">
+        
+        <item name="colorPrimary">@color/primary</item>
+        <item name="colorPrimaryVariant">@color/primary_dark</item>
+        <item name="colorOnPrimary">@color/on_primary</item>
+        
+        <item name="colorSecondary">@color/secondary</item>
+        <item name="colorSecondaryVariant">@color/secondary_dark</item>
+        <item name="colorOnSecondary">@color/on_secondary</item>
+
+        
+        <item name="android:windowBackground">@color/background</item>
+        <item name="colorSurface">@color/surface</item>
+        <item name="colorError">@color/error</item>
+        <item name="colorOnBackground">@color/on_background</item>
+        <item name="colorOnSurface">@color/on_surface</item>
+
+        
+        <item name="android:statusBarColor">@color/background</item>
+
+        
+        <item name="android:textColorPrimary">@color/on_background</item>
+        <item name="android:textColorSecondary">@color/on_background_secondary</item>
+        <item name="android:editTextColor">@color/on_background</item>
+        <item name="android:textColorHint">@color/on_background_secondary</item>
+
+        
+        <item name="android:fontFamily">sans-serif-medium</item>
+    </style>
+    <style name="Theme.UniversityVotingApp.Large" parent="Theme.UniversityVotingApp">
+        <item name="android:textSize">20sp</item>
+    </style>
+    <style name="Theme.UniversityVotingApp.Medium" parent="Theme.UniversityVotingApp">
+        <item name="android:textSize">16sp</item>
+    </style>
+    <style name="Theme.UniversityVotingApp.Monospace" parent="Theme.UniversityVotingApp">
+        <item name="android:fontFamily">monospace</item>
+    </style>
+    <style name="Theme.UniversityVotingApp.NoActionBar" parent="Theme.UniversityVotingApp"/>
+    <style name="Theme.UniversityVotingApp.SansSerif" parent="Theme.UniversityVotingApp">
+        <item name="android:fontFamily">sans-serif</item>
+    </style>
+    <style name="Theme.UniversityVotingApp.Serif" parent="Theme.UniversityVotingApp">
+        <item name="android:fontFamily">serif</item>
+    </style>
+    <style name="Theme.UniversityVotingApp.Small" parent="Theme.UniversityVotingApp">
+        <item name="android:textSize">12sp</item>
+    </style>
+</resources>

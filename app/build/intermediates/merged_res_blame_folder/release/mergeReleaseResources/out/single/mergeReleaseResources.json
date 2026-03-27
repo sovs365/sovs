@@ -1,0 +1,210 @@
+[
+    {
+        "merged": "com.university.voting.app-release-43:/drawable_ic_data.xml.flat",
+        "source": "com.university.voting.app-main-44:/drawable/ic_data.xml"
+    },
+    {
+        "merged": "com.university.voting.app-release-43:/layout_activity_admin_registration.xml.flat",
+        "source": "com.university.voting.app-main-44:/layout/activity_admin_registration.xml"
+    },
+    {
+        "merged": "com.university.voting.app-release-43:/layout_activity_registration_success.xml.flat",
+        "source": "com.university.voting.app-main-44:/layout/activity_registration_success.xml"
+    },
+    {
+        "merged": "com.university.voting.app-release-43:/drawable_ic_lock.xml.flat",
+        "source": "com.university.voting.app-main-44:/drawable/ic_lock.xml"
+    },
+    {
+        "merged": "com.university.voting.app-release-43:/layout_dialog_edit_user.xml.flat",
+        "source": "com.university.voting.app-main-44:/layout/dialog_edit_user.xml"
+    },
+    {
+        "merged": "com.university.voting.app-release-43:/xml_network_security_config.xml.flat",
+        "source": "com.university.voting.app-main-44:/xml/network_security_config.xml"
+    },
+    {
+        "merged": "com.university.voting.app-release-43:/layout_activity_reset_password.xml.flat",
+        "source": "com.university.voting.app-main-44:/layout/activity_reset_password.xml"
+    },
+    {
+        "merged": "com.university.voting.app-release-43:/layout_item_candidate_admin.xml.flat",
+        "source": "com.university.voting.app-main-44:/layout/item_candidate_admin.xml"
+    },
+    {
+        "merged": "com.university.voting.app-release-43:/drawable_edit_text_bg.xml.flat",
+        "source": "com.university.voting.app-main-44:/drawable/edit_text_bg.xml"
+    },
+    {
+        "merged": "com.university.voting.app-release-43:/drawable_ic_election.xml.flat",
+        "source": "com.university.voting.app-main-44:/drawable/ic_election.xml"
+    },
+    {
+        "merged": "com.university.voting.app-release-43:/layout_activity_admin_data_management.xml.flat",
+        "source": "com.university.voting.app-main-44:/layout/activity_admin_data_management.xml"
+    },
+    {
+        "merged": "com.university.voting.app-release-43:/drawable_ic_id.xml.flat",
+        "source": "com.university.voting.app-main-44:/drawable/ic_id.xml"
+    },
+    {
+        "merged": "com.university.voting.app-release-43:/layout_activity_admin_election_management.xml.flat",
+        "source": "com.university.voting.app-main-44:/layout/activity_admin_election_management.xml"
+    },
+    {
+        "merged": "com.university.voting.app-release-43:/drawable_ic_home.xml.flat",
+        "source": "com.university.voting.app-main-44:/drawable/ic_home.xml"
+    },
+    {
+        "merged": "com.university.voting.app-release-43:/xml_data_extraction_rules.xml.flat",
+        "source": "com.university.voting.app-main-44:/xml/data_extraction_rules.xml"
+    },
+    {
+        "merged": "com.university.voting.app-release-43:/layout_activity_settings.xml.flat",
+        "source": "com.university.voting.app-main-44:/layout/activity_settings.xml"
+    },
+    {
+        "merged": "com.university.voting.app-release-43:/layout_activity_register_verify_code.xml.flat",
+        "source": "com.university.voting.app-main-44:/layout/activity_register_verify_code.xml"
+    },
+    {
+        "merged": "com.university.voting.app-release-43:/layout_item_candidate_vote.xml.flat",
+        "source": "com.university.voting.app-main-44:/layout/item_candidate_vote.xml"
+    },
+    {
+        "merged": "com.university.voting.app-release-43:/drawable_ic_back.xml.flat",
+        "source": "com.university.voting.app-main-44:/drawable/ic_back.xml"
+    },
+    {
+        "merged": "com.university.voting.app-release-43:/layout_activity_forgot_password.xml.flat",
+        "source": "com.university.voting.app-main-44:/layout/activity_forgot_password.xml"
+    },
+    {
+        "merged": "com.university.voting.app-release-43:/layout_activity_results.xml.flat",
+        "source": "com.university.voting.app-main-44:/layout/activity_results.xml"
+    },
+    {
+        "merged": "com.university.voting.app-release-43:/mipmap-anydpi-v26_ic_launcher.xml.flat",
+        "source": "com.university.voting.app-main-44:/mipmap-anydpi-v26/ic_launcher.xml"
+    },
+    {
+        "merged": "com.university.voting.app-release-43:/layout_activity_login.xml.flat",
+        "source": "com.university.voting.app-main-44:/layout/activity_login.xml"
+    },
+    {
+        "merged": "com.university.voting.app-release-43:/layout_activity_manage_candidates.xml.flat",
+        "source": "com.university.voting.app-main-44:/layout/activity_manage_candidates.xml"
+    },
+    {
+        "merged": "com.university.voting.app-release-43:/drawable_button_bg.xml.flat",
+        "source": "com.university.voting.app-main-44:/drawable/button_bg.xml"
+    },
+    {
+        "merged": "com.university.voting.app-release-43:/drawable_button_outline.xml.flat",
+        "source": "com.university.voting.app-main-44:/drawable/button_outline.xml"
+    },
+    {
+        "merged": "com.university.voting.app-release-43:/layout_item_election_voter.xml.flat",
+        "source": "com.university.voting.app-main-44:/layout/item_election_voter.xml"
+    },
+    {
+        "merged": "com.university.voting.app-release-43:/drawable_ic_settings.xml.flat",
+        "source": "com.university.voting.app-main-44:/drawable/ic_settings.xml"
+    },
+    {
+        "merged": "com.university.voting.app-release-43:/drawable_ic_launcher_foreground.xml.flat",
+        "source": "com.university.voting.app-main-44:/drawable/ic_launcher_foreground.xml"
+    },
+    {
+        "merged": "com.university.voting.app-release-43:/drawable_input_bg.xml.flat",
+        "source": "com.university.voting.app-main-44:/drawable/input_bg.xml"
+    },
+    {
+        "merged": "com.university.voting.app-release-43:/drawable_ic_sov_logo.xml.flat",
+        "source": "com.university.voting.app-main-44:/drawable/ic_sov_logo.xml"
+    },
+    {
+        "merged": "com.university.voting.app-release-43:/drawable_ic_users.xml.flat",
+        "source": "com.university.voting.app-main-44:/drawable/ic_users.xml"
+    },
+    {
+        "merged": "com.university.voting.app-release-43:/layout_activity_admin_reports.xml.flat",
+        "source": "com.university.voting.app-main-44:/layout/activity_admin_reports.xml"
+    },
+    {
+        "merged": "com.university.voting.app-release-43:/layout_activity_candidate_dashboard.xml.flat",
+        "source": "com.university.voting.app-main-44:/layout/activity_candidate_dashboard.xml"
+    },
+    {
+        "merged": "com.university.voting.app-release-43:/layout_activity_login_verify_code.xml.flat",
+        "source": "com.university.voting.app-main-44:/layout/activity_login_verify_code.xml"
+    },
+    {
+        "merged": "com.university.voting.app-release-43:/layout_activity_manage_users.xml.flat",
+        "source": "com.university.voting.app-main-44:/layout/activity_manage_users.xml"
+    },
+    {
+        "merged": "com.university.voting.app-release-43:/drawable_ic_results.xml.flat",
+        "source": "com.university.voting.app-main-44:/drawable/ic_results.xml"
+    },
+    {
+        "merged": "com.university.voting.app-release-43:/layout_activity_terms_conditions.xml.flat",
+        "source": "com.university.voting.app-main-44:/layout/activity_terms_conditions.xml"
+    },
+    {
+        "merged": "com.university.voting.app-release-43:/layout_item_position_vote.xml.flat",
+        "source": "com.university.voting.app-main-44:/layout/item_position_vote.xml"
+    },
+    {
+        "merged": "com.university.voting.app-release-43:/drawable_ic_profile.xml.flat",
+        "source": "com.university.voting.app-main-44:/drawable/ic_profile.xml"
+    },
+    {
+        "merged": "com.university.voting.app-release-43:/layout_activity_registration.xml.flat",
+        "source": "com.university.voting.app-main-44:/layout/activity_registration.xml"
+    },
+    {
+        "merged": "com.university.voting.app-release-43:/layout_activity_main.xml.flat",
+        "source": "com.university.voting.app-main-44:/layout/activity_main.xml"
+    },
+    {
+        "merged": "com.university.voting.app-release-43:/layout_activity_admin_dashboard.xml.flat",
+        "source": "com.university.voting.app-main-44:/layout/activity_admin_dashboard.xml"
+    },
+    {
+        "merged": "com.university.voting.app-release-43:/drawable_ic_candidate.xml.flat",
+        "source": "com.university.voting.app-main-44:/drawable/ic_candidate.xml"
+    },
+    {
+        "merged": "com.university.voting.app-release-43:/layout_activity_edit_profile.xml.flat",
+        "source": "com.university.voting.app-main-44:/layout/activity_edit_profile.xml"
+    },
+    {
+        "merged": "com.university.voting.app-release-43:/layout_activity_verify_code.xml.flat",
+        "source": "com.university.voting.app-main-44:/layout/activity_verify_code.xml"
+    },
+    {
+        "merged": "com.university.voting.app-release-43:/drawable_ic_person.xml.flat",
+        "source": "com.university.voting.app-main-44:/drawable/ic_person.xml"
+    },
+    {
+        "merged": "com.university.voting.app-release-43:/drawable_ic_user.xml.flat",
+        "source": "com.university.voting.app-main-44:/drawable/ic_user.xml"
+    },
+    {
+        "merged": "com.university.voting.app-release-43:/xml_backup_rules.xml.flat",
+        "source": "com.university.voting.app-main-44:/xml/backup_rules.xml"
+    },
+    {
+        "merged": "com.university.voting.app-release-43:/layout_activity_voter_dashboard.xml.flat",
+        "source": "com.university.voting.app-main-44:/layout/activity_voter_dashboard.xml"
+    },
+    {
+        "merged": "com.university.voting.app-release-43:/layout_activity_voting.xml.flat",
+        "source": "com.university.voting.app-main-44:/layout/activity_voting.xml"
+    },
+    {
+        "merged": "com.university.voting.app-release-43:/drawable_ic_reports.xml.flat",
+        "source": "com.university.voting.app-main-44:/drawable/ic_reports.xml"
+    }
+]

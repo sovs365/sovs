@@ -1,0 +1,542 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true"
+    android:background="@color/background"
+    tools:context=".ui.RegistrationActivity">
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="24dp">
+
+            <!-- Header Section with Icon -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:layout_marginBottom="32dp">
+
+                <ImageView
+                    android:layout_width="80dp"
+                    android:layout_height="80dp"
+                    android:src="@drawable/ic_person"
+                    app:tint="@color/primary"
+                    android:layout_marginBottom="16dp"
+                    android:contentDescription="Registration" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Create Account"
+                    android:textSize="28sp"
+                    android:textStyle="bold"
+                    android:gravity="center"
+                    android:textColor="@color/on_background"
+                    android:layout_marginBottom="8dp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Join the SOVS community today"
+                    android:textSize="14sp"
+                    android:gravity="center"
+                    android:textColor="@color/on_background_secondary"
+                    android:layout_marginBottom="0dp"/>
+            </LinearLayout>
+
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="6dp"
+                app:cardBackgroundColor="@color/card_background"
+                android:layout_marginBottom="16dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginBottom="12dp">
+
+                        <ImageView
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:src="@drawable/ic_person"
+                            app:tint="@color/primary"
+                            android:contentDescription="User Role"
+                            android:layout_marginEnd="8dp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="User Role"
+                            android:textStyle="bold"
+                            android:textSize="16sp"
+                            android:textColor="@color/primary"
+                            android:layout_marginBottom="0dp"/>
+                    </LinearLayout>
+
+                    <RadioGroup
+                        android:id="@+id/rgRole"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginBottom="16dp"
+                        android:layout_marginTop="8dp">
+
+                        <!-- Voter Option -->
+                        <FrameLayout
+                            android:id="@+id/roleVoterOption"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginEnd="8dp">
+
+                            <androidx.cardview.widget.CardView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                app:cardCornerRadius="8dp"
+                                app:cardElevation="2dp"
+                                app:cardBackgroundColor="#F0F2F5">
+
+                                <LinearLayout
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:orientation="vertical"
+                                    android:gravity="center"
+                                    android:padding="12dp">
+
+                                    <ImageView
+                                        android:layout_width="32dp"
+                                        android:layout_height="32dp"
+                                        android:src="@drawable/ic_home"
+                                        app:tint="@color/primary"
+                                        android:layout_marginBottom="4dp"
+                                        android:contentDescription="Voter" />
+
+                                    <RadioButton
+                                        android:id="@+id/rbVoter"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="Voter"
+                                        android:checked="true"
+                                        android:textColor="@color/on_background"
+                                        android:textSize="12sp"/>
+
+                                </LinearLayout>
+                            </androidx.cardview.widget.CardView>
+                        </FrameLayout>
+
+                        <!-- Candidate Option -->
+                        <FrameLayout
+                            android:id="@+id/roleCandidateOption"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="8dp">
+
+                            <androidx.cardview.widget.CardView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                app:cardCornerRadius="8dp"
+                                app:cardElevation="2dp"
+                                app:cardBackgroundColor="#F0F2F5">
+
+                                <LinearLayout
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:orientation="vertical"
+                                    android:gravity="center"
+                                    android:padding="12dp">
+
+                                    <ImageView
+                                        android:layout_width="32dp"
+                                        android:layout_height="32dp"
+                                        android:src="@drawable/ic_candidate"
+                                        app:tint="@color/primary"
+                                        android:layout_marginBottom="4dp"
+                                        android:contentDescription="Candidate" />
+
+                                    <RadioButton
+                                        android:id="@+id/rbCandidate"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="Candidate"
+                                        android:textColor="@color/on_background"
+                                        android:textSize="12sp"/>
+
+                                </LinearLayout>
+                            </androidx.cardview.widget.CardView>
+                        </FrameLayout>
+
+                    </RadioGroup>
+
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/divider" android:layout_marginBottom="16dp"/>
+
+                    <!-- Student/Voter/Candidate fields -->
+                    <LinearLayout
+                        android:id="@+id/voterFieldsContainer"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+
+                        <!-- Registration Number with Icon -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical"
+                            android:background="@drawable/edit_text_bg"
+                            android:padding="4dp"
+                            android:layout_marginBottom="12dp"
+                            android:layout_marginTop="8dp">
+
+                            <ImageView
+                                android:layout_width="24dp"
+                                android:layout_height="24dp"
+                                android:src="@drawable/ic_id"
+                                app:tint="@color/primary"
+                                android:layout_marginStart="8dp"
+                                android:layout_marginEnd="8dp"
+                                android:contentDescription="ID" />
+
+                            <EditText
+                                android:id="@+id/etRegNo"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:hint="Registration Number"
+                                android:padding="12dp"
+                                android:background="@android:color/transparent"
+                                android:textColor="@color/on_background"
+                                android:textColorHint="@color/on_background_secondary"
+                                android:inputType="text" />
+                        </LinearLayout>
+
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Faculty" android:textSize="12sp" android:textColor="@color/on_background_secondary"/>
+                        <Spinner
+                            android:id="@+id/spinnerFaculty"
+                            android:layout_width="match_parent"
+                            android:layout_height="48dp"
+                            android:layout_marginBottom="12dp"/>
+
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Course" android:textSize="12sp" android:textColor="@color/on_background_secondary"/>
+                        <Spinner
+                            android:id="@+id/spinnerCourse"
+                            android:layout_width="match_parent"
+                            android:layout_height="48dp"
+                            android:layout_marginBottom="12dp"/>
+
+                        <Spinner
+                            android:id="@+id/spinnerSubject"
+                            android:layout_width="match_parent"
+                            android:layout_height="48dp"
+                            android:visibility="gone"
+                            android:layout_marginBottom="12dp"/>
+
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Level of Study" android:textSize="12sp" android:textColor="@color/on_background_secondary"/>
+                        <Spinner
+                            android:id="@+id/spinnerLevel"
+                            android:layout_width="match_parent"
+                            android:layout_height="48dp"
+                            android:layout_marginBottom="12dp"/>
+
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Year of Study" android:textSize="12sp" android:textColor="@color/on_background_secondary"/>
+                        <Spinner
+                            android:id="@+id/spinnerYear"
+                            android:layout_width="match_parent"
+                            android:layout_height="48dp"
+                            android:layout_marginBottom="12dp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Gender"
+                            android:textStyle="bold"
+                            android:textColor="@color/on_background"
+                            android:layout_marginBottom="4dp"/>
+
+                        <RadioGroup
+                            android:id="@+id/rgGender"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:layout_marginBottom="12dp">
+
+                            <RadioButton
+                                android:id="@+id/rbMale"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Male"
+                                android:checked="true"
+                                android:textColor="@color/on_background"/>
+
+                            <RadioButton
+                                android:id="@+id/rbFemale"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Female"
+                                android:textColor="@color/on_background"/>
+                        </RadioGroup>
+
+                        <CheckBox
+                            android:id="@+id/cbDisability"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Has Disability?"
+                            android:textColor="@color/on_background"
+                            android:layout_marginBottom="4dp"/>
+
+                        <Spinner
+                            android:id="@+id/spinnerDisability"
+                            android:layout_width="match_parent"
+                            android:layout_height="48dp"
+                            android:visibility="gone"
+                            android:layout_marginBottom="12dp"/>
+
+                    </LinearLayout>
+
+                    <EditText
+                        android:id="@+id/etFullName"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:hint="Full Name"
+                        android:padding="12dp"
+                        android:background="@drawable/edit_text_bg"
+                        android:textColor="@color/on_background"
+                        android:textColorHint="@color/on_background_secondary"
+                        android:drawableStart="@drawable/ic_person"
+                        android:drawablePadding="8dp"
+                        android:layout_marginBottom="12dp" />
+
+                    <EditText
+                        android:id="@+id/etEmail"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:hint="Email Address"
+                        android:inputType="textEmailAddress"
+                        android:padding="12dp"
+                        android:background="@drawable/edit_text_bg"
+                        android:textColor="@color/on_background"
+                        android:textColorHint="@color/on_background_secondary"
+                        android:drawableStart="@drawable/ic_person"
+                        android:drawablePadding="8dp"
+                        android:layout_marginBottom="12dp" />
+
+                    <EditText
+                        android:id="@+id/etPhone"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:hint="Phone Number"
+                        android:inputType="phone"
+                        android:padding="12dp"
+                        android:background="@drawable/edit_text_bg"
+                        android:textColor="@color/on_background"
+                        android:textColorHint="@color/on_background_secondary"
+                        android:drawableStart="@drawable/ic_person"
+                        android:drawablePadding="8dp"
+                        android:layout_marginBottom="12dp" />
+
+                    <!-- Candidate specific fields -->
+                    <LinearLayout
+                        android:id="@+id/candidateContainer"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:visibility="gone">
+
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Target Position" android:textSize="12sp" android:textColor="@color/on_background_secondary"/>
+                        <Spinner
+                            android:id="@+id/spinnerPosition"
+                            android:layout_width="match_parent"
+                            android:layout_height="48dp"
+                            android:layout_marginBottom="12dp"/>
+
+                        <EditText
+                            android:id="@+id/etManifesto"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:hint="Manifesto"
+                            android:inputType="textMultiLine"
+                            android:minLines="3"
+                            android:padding="12dp"
+                            android:background="@drawable/edit_text_bg"
+                            android:textColor="@color/on_background"
+                            android:textColorHint="@color/on_background_secondary"
+                            android:layout_marginBottom="12dp" />
+
+                        <Button
+                            android:id="@+id/btnUploadCv"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Upload CV (PDF)"
+                            style="@style/Widget.Material3.Button.OutlinedButton"
+                            android:layout_marginBottom="4dp"/>
+                        <TextView android:id="@+id/tvCvName" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="@color/on_background_secondary" android:textSize="12sp" android:layout_marginBottom="8dp"/>
+
+                        <Button
+                            android:id="@+id/btnUploadDeclaration"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Upload Declaration (PDF)"
+                            style="@style/Widget.Material3.Button.OutlinedButton"
+                            android:layout_marginBottom="4dp"/>
+                        <TextView android:id="@+id/tvDeclarationName" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="@color/on_background_secondary" android:textSize="12sp" android:layout_marginBottom="8dp"/>
+
+                        <Button
+                            android:id="@+id/btnUploadSchoolId"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Upload School ID (PDF)"
+                            style="@style/Widget.Material3.Button.OutlinedButton"
+                            android:layout_marginBottom="4dp"/>
+                        <TextView android:id="@+id/tvSchoolIdName" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="@color/on_background_secondary" android:textSize="12sp" android:layout_marginBottom="8dp"/>
+
+                        <Button
+                            android:id="@+id/btnUploadAcademicClearance"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Upload Academic Clearance (PDF)"
+                            style="@style/Widget.Material3.Button.OutlinedButton"
+                            android:layout_marginBottom="4dp"/>
+                        <TextView android:id="@+id/tvAcademicClearanceName" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="@color/on_background_secondary" android:textSize="12sp" android:layout_marginBottom="8dp"/>
+
+                        <Button
+                            android:id="@+id/btnUploadCodeOfConduct"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Upload Code of Conduct (PDF)"
+                            style="@style/Widget.Material3.Button.OutlinedButton"
+                            android:layout_marginBottom="4dp"/>
+                        <TextView android:id="@+id/tvCodeOfConductName" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="@color/on_background_secondary" android:textSize="12sp" android:layout_marginBottom="8dp"/>
+
+                        <Button
+                            android:id="@+id/btnUploadPassport"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Upload Passport Photo (Image)"
+                            style="@style/Widget.Material3.Button.OutlinedButton"
+                            android:layout_marginBottom="4dp"/>
+                        <TextView android:id="@+id/tvPassportName" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="@color/on_background_secondary" android:textSize="12sp" android:layout_marginBottom="16dp"/>
+
+                    </LinearLayout>
+
+                    <EditText
+                        android:id="@+id/etUsername"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:hint="Username"
+                        android:padding="12dp"
+                        android:background="@drawable/edit_text_bg"
+                        android:textColor="@color/on_background"
+                        android:textColorHint="@color/on_background_secondary"
+                        android:drawableStart="@drawable/ic_user"
+                        android:drawablePadding="8dp"
+                        android:layout_marginBottom="12dp" />
+
+                    <EditText
+                        android:id="@+id/etPassword"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:hint="Password"
+                        android:inputType="textPassword"
+                        android:padding="12dp"
+                        android:background="@drawable/edit_text_bg"
+                        android:textColor="@color/on_background"
+                        android:textColorHint="@color/on_background_secondary"
+                        android:drawableStart="@drawable/ic_lock"
+                        android:drawablePadding="8dp"
+                        android:layout_marginBottom="16dp" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginBottom="16dp">
+                        <CheckBox
+                            android:id="@+id/cbTerms"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content" />
+                        <TextView
+                            android:id="@+id/tvTerms"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="I accept the Terms and Conditions"
+                            android:textColor="@color/primary"
+                            android:textStyle="bold" />
+                    </LinearLayout>
+
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
+            <Button
+                android:id="@+id/btnRegister"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:text="Register"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_gravity="center"
+                android:layout_marginTop="24dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Already have an account? "
+                    android:textColor="@color/on_background_secondary" />
+
+                <TextView
+                    android:id="@+id/tvLoginLink"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Login"
+                    android:textStyle="bold"
+                    android:textColor="@color/primary"
+                    android:clickable="true"
+                    android:focusable="true" />
+            </LinearLayout>
+
+            <Button
+                android:id="@+id/btnBack"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Back"
+                android:layout_marginTop="32dp"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:textColor="@color/on_background_secondary"/>
+
+        </LinearLayout>
+
+        <ProgressBar
+            android:id="@+id/progressBar"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:visibility="gone" />
+
+    </FrameLayout>
+
+</ScrollView>
