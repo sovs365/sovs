@@ -2,13 +2,15 @@ import pkg from 'pg';
 const { Pool } = pkg;
 import dotenv from 'dotenv';
 import crypto from 'crypto';
+import bcryptjs from 'bcryptjs';
+import { v4 as uuidv4 } from 'uuid';
 
 dotenv.config();
 
 let pool = null;
 let dbConnected = false;
 
-// Initialize pool with connection error handling
+// Initialize pool with connection error handling and retry logic
 const initializePool = () => {
   try {
     pool = new Pool({
@@ -22,17 +24,57 @@ const initializePool = () => {
     });
 
     pool.on('error', (err) => {
-      console.error('Unexpected error on idle client:', err);
+      console.error('❌ Unexpected error on idle client:', err.message);
       dbConnected = false;
+      // Attempt to reconnect after 5 seconds
+      setTimeout(() => {
+        console.log('🔄 Attempting to reconnect to database...');
+        testDatabaseConnection();
+      }, 5000);
+    });
+
+    pool.on('connect', () => {
+      console.log('✅ New client connected to pool');
     });
 
     return pool;
   } catch (error) {
-    console.error('Failed to create connection pool:', error.message);
+    console.error('❌ Failed to create connection pool:', error.message);
     dbConnected = false;
     return null;
   }
 };
+
+// Test database connection with retry logic
+async function testDatabaseConnection(retries = 3) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      if (!pool) {
+        pool = initializePool();
+      }
+      
+      const client = await pool.connect();
+      await client.query('SELECT NOW()');
+      client.release();
+      
+      dbConnected = true;
+      console.log('✅ Database connection test successful');
+      return true;
+    } catch (error) {
+      console.warn(`⚠️  Database connection attempt ${attempt}/${retries} failed: ${error.message}`);
+      
+      if (attempt < retries) {
+        const delayMs = 1000 * attempt;
+        console.log(`⏳ Retrying in ${delayMs}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
+    }
+  }
+  
+  dbConnected = false;
+  console.error('❌ Failed to connect to database after all retries');
+  return false;
+}
 
 // Initialize database schema
 export async function initializeDatabase() {
@@ -47,13 +89,14 @@ export async function initializeDatabase() {
     return false;
   }
 
-  try {
-    // Test connection
-    const client = await pool.connect();
-    client.release();
-    dbConnected = true;
-    console.log('✅ Successfully connected to PostgreSQL database');
+  // Test connection first
+  const isConnected = await testDatabaseConnection(3);
+  if (!isConnected) {
+    console.warn('⚠️  Could not establish database connection');
+    return false;
+  }
 
+  try {
     // Create tables
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
@@ -214,16 +257,112 @@ export async function seedDatabase() {
   }
 }
 
+/**
+ * Seed admin user with bcrypt-hashed password
+ * Username: admin
+ * Password: admin (bcrypt hashed with 12 rounds)
+ */
+export async function seedAdminUser() {
+  if (!dbConnected || !pool) {
+    console.warn('⚠️  Database not connected - skipping admin seed');
+    return;
+  }
+
+  try {
+    const client = await pool.connect();
+    
+    // Check if admin user already exists
+    const adminCheck = await client.query(
+      'SELECT user_id FROM users WHERE username = $1 AND role = $2',
+      ['admin', 'admin']
+    );
+
+    if (adminCheck.rows.length > 0) {
+      console.log('✅ Admin user already exists');
+      client.release();
+      return;
+    }
+
+    // Hash password using bcryptjs (12 rounds for security)
+    const plainPassword = 'admin';
+    const passwordHash = await bcryptjs.hash(plainPassword, 12);
+
+    // Create admin user
+    const adminId = uuidv4();
+    const adminEmail = 'admin@university.edu';
+
+    await client.query(
+      `INSERT INTO users (
+        user_id, 
+        username, 
+        email, 
+        password_hash, 
+        role, 
+        is_verified, 
+        is_locked,
+        created_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())`,
+      [
+        adminId,
+        'admin',
+        adminEmail,
+        passwordHash,
+        'admin',
+        true,
+        false
+      ]
+    );
+
+    console.log('✅ Admin user created successfully!');
+    console.log('📋 Credentials:');
+    console.log('   Username: admin');
+    console.log('   Password: admin (bcrypt hashed - 12 rounds)');
+    console.log('   Email: ' + adminEmail);
+
+    client.release();
+  } catch (error) {
+    console.warn('⚠️  Admin seeding error:', error.message);
+  }
+}
+
 export function generateId() {
   return crypto.randomUUID();
 }
 
 export async function query(text, params) {
   if (!dbConnected || !pool) {
-    console.warn('⚠️  Database not connected - query might fail:', text.substring(0, 50));
-    throw new Error('Database not connected');
+    console.warn('⚠️  Database not connected - attempting to reconnect...');
+    await testDatabaseConnection(2);
+    if (!dbConnected || !pool) {
+      throw new Error('Database not connected');
+    }
   }
-  return pool.query(text, params);
+  
+  const maxRetries = 3;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await pool.query(text, params);
+    } catch (error) {
+      // Retry on transient errors
+      if (error.code === 'ECONNREFUSED' || 
+          error.code === 'ETIMEDOUT' || 
+          error.code === 'EHOSTUNREACH' ||
+          error.message?.includes('idle')) {
+        
+        console.warn(`⚠️  Query attempt ${attempt}/${maxRetries} failed (transient error): ${error.message}`);
+        
+        if (attempt < maxRetries) {
+          const delayMs = 500 * attempt;
+          console.log(`⏳ Retrying query in ${delayMs}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delayMs));
+          continue;
+        }
+      }
+      
+      // For non-transient errors or final retry, throw immediately
+      throw error;
+    }
+  }
 }
 
 export async function getClient() {

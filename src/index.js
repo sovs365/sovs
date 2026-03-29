@@ -4,7 +4,7 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
-import { initializeDatabase, seedDatabase } from './db.js';
+import { initializeDatabase, seedDatabase, seedAdminUser } from './db.js';
 import authRoutes from './routes/authRoutes.js';
 import electionRoutes from './routes/electionRoutes.js';
 import voteRoutes from './routes/voteRoutes.js';
@@ -120,6 +120,13 @@ async function startServer() {
       } catch (error) {
         console.warn('⚠️  Could not seed database:', error.message);
       }
+    }
+
+    // Always seed admin user (idempotent - safe to call multiple times)
+    try {
+      await seedAdminUser();
+    } catch (error) {
+      console.warn('⚠️  Could not seed admin user:', error.message);
     }
 
     app.listen(PORT, '0.0.0.0', () => {
