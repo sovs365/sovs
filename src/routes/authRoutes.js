@@ -3,7 +3,7 @@ import bcryptjs from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
 import { generateToken, authenticateToken, getUserById } from '../auth.js';
 import { query } from '../db.js';
-import mailgunEmailService from '../utils/mailgunEmailService.js';
+import brevoEmailService from '../utils/brevoEmailService.js';
 import verificationCodeManager from '../utils/verificationCodeManager.js';
 
 const router = express.Router();
@@ -77,7 +77,7 @@ router.post('/send-registration-code', async (req, res) => {
     }
 
     // Send email (non-blocking)
-    mailgunEmailService.sendVerificationCode(normalizedEmail, code, 'registration')
+    brevoEmailService.sendVerificationCode(normalizedEmail, code, 'registration')
       .then(sent => {
         if (sent) {
           console.log(`✅ Registration verification code sent to ${normalizedEmail}`);
@@ -284,7 +284,7 @@ router.post('/login', async (req, res) => {
     }
 
     // Send verification code to email (non-blocking - send in background)
-    mailgunEmailService.sendVerificationCode(userEmail, verificationCode, 'login')
+    brevoEmailService.sendVerificationCode(userEmail, verificationCode, 'login')
       .then(sent => {
         if (sent) {
           console.log(`✅ Login verification code sent to ${userEmail}`);
@@ -452,7 +452,7 @@ router.post('/send-password-reset-code', async (req, res) => {
     }
 
     // Send email (non-blocking)
-    mailgunEmailService.sendVerificationCode(normalizedEmail, code, 'password_reset')
+    brevoEmailService.sendVerificationCode(normalizedEmail, code, 'password_reset')
       .then(sent => {
         if (sent) {
           console.log(`✅ Password reset code sent to ${normalizedEmail}`);
@@ -586,7 +586,7 @@ router.post('/send-reset-code', async (req, res) => {
     verificationCodeManager.storeCode(email, code, 'password_reset');
 
     // Send email (non-blocking)
-    mailgunEmailService.sendVerificationCode(email, code, 'password_reset')
+    brevoEmailService.sendVerificationCode(email, code, 'password_reset')
       .then(sent => {
         if (sent) {
           console.log(`✅ Reset code sent to ${email}`);
@@ -736,7 +736,7 @@ router.post('/test-email', async (req, res) => {
     const testCode = '123456';
     
     // Send test email and await result
-    const result = await mailgunEmailService.sendVerificationCode(email, testCode, 'registration');
+    const result = await brevoEmailService.sendVerificationCode(email, testCode, 'registration');
     
     if (result) {
       res.json({
