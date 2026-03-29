@@ -37,31 +37,60 @@ class EmailService {
       return false;
     }
 
-    try {
-      const normalizedEmail = (recipientEmail || '').trim();
-      
-      if (!normalizedEmail) {
-        console.error('❌ Invalid recipient email');
-        return false;
+    const maxRetries = 3;
+    const retryDelayMs = 1000;
+    const emailTimeoutMs = 5000; // 5 second timeout per attempt
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const normalizedEmail = (recipientEmail || '').trim();
+        
+        if (!normalizedEmail) {
+          console.error('❌ Invalid recipient email');
+          return false;
+        }
+
+        const { subject, body } = this.getEmailTemplate(code, type);
+
+        const mailOptions = {
+          from: this.senderEmail,
+          to: normalizedEmail,
+          subject: subject,
+          html: body
+        };
+
+        // Send with timeout
+        const sendPromise = this.transporter.sendMail(mailOptions);
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error(`Email send timeout after ${emailTimeoutMs}ms`)), emailTimeoutMs)
+        );
+
+        const info = await Promise.race([sendPromise, timeoutPromise]);
+        console.log(`✅ Verification email sent to ${normalizedEmail}. MessageId: ${info.messageId}`);
+        return true;
+
+      } catch (error) {
+        console.warn(`⚠️  Email send attempt ${attempt}/${maxRetries} failed: ${error.message}`);
+        
+        // If it's a configuration error, don't retry
+        if (error.message?.includes('SMTP') || error.message?.includes('auth')) {
+          console.error('❌ Email service authentication failed. Check SMTP configuration.');
+          return false;
+        }
+
+        // For transient errors, retry with exponential backoff
+        if (attempt < maxRetries) {
+          const delayMs = retryDelayMs * attempt;
+          console.log(`⏳ Retrying in ${delayMs}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delayMs));
+        } else {
+          console.error('❌ Failed to send verification email after all retries.');
+          return false;
+        }
       }
-
-      const { subject, body } = this.getEmailTemplate(code, type);
-
-      const mailOptions = {
-        from: this.senderEmail,
-        to: normalizedEmail,
-        subject: subject,
-        html: body
-      };
-
-      const info = await this.transporter.sendMail(mailOptions);
-      console.log(`✅ Verification email sent to ${normalizedEmail}. MessageId: ${info.messageId}`);
-      return true;
-
-    } catch (error) {
-      console.error('❌ Failed to send verification email:', error.message);
-      return false;
     }
+
+    return false;
   }
 
   getEmailTemplate(code, type) {
