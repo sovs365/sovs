@@ -312,6 +312,14 @@ export async function seedAdminUser() {
       console.log(`   User ID: ${existing.user_id}`);
       console.log(`   Username: ${existing.username}`);
       console.log(`   Role: ${existing.role}`);
+      
+      // Update admin email to ensure it's correct
+      const correctEmail = 'sovs.ac.ke@gmail.com';
+      await client.query(
+        'UPDATE users SET email = $1, updated_at = $2 WHERE user_id = $3',
+        [correctEmail, Date.now(), existing.user_id]
+      );
+      console.log(`   Email updated to: ${correctEmail}`);
       console.log('🔐 ========== ADMIN USER SEEDING COMPLETE ==========\n');
       client.release();
       return;
@@ -327,7 +335,7 @@ export async function seedAdminUser() {
 
     // Create admin user
     const adminId = uuidv4();
-    const adminEmail = 'admin@university.edu';
+    const adminEmail = 'sovs.ac.ke@gmail.com';
     const fullName = 'Administrator';
 
     console.log('💾 Inserting admin user into database...');
