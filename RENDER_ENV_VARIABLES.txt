@@ -1,0 +1,75 @@
+================================================================================
+RENDER ENVIRONMENT VARIABLES FOR SOVS BACKEND
+================================================================================
+Copy and paste these into Render Dashboard → Your Service → Environment
+
+================================================================================
+PRODUCTION ENVIRONMENT VARIABLES
+================================================================================
+
+SMTP_SENDER_EMAIL=sovs.ac.ke@gmail.com
+SMTP_APP_PASSWORD=jacfbuibmzdbpqbl
+JWT_SECRET=gdfreyo01-voting-backend-2024-secure-key
+DATABASE_URL=postgresql://sovs_db_user:K4jC0YqoGZdSHpKTWnnqorlOcvoX44jv@dpg-d70qhjfafjfc7399o390-a/sovs_db
+NODE_ENV=production
+PORT=3000
+
+================================================================================
+HOW TO ADD THESE TO RENDER:
+================================================================================
+
+1. Go to https://dashboard.render.com
+2. Click on your service: sovs-zeo8
+3. Click "Settings" tab
+4. Scroll to "Environment" section
+5. Click "Add Environment Variable"
+6. For each variable above, enter:
+   - KEY: (e.g., SMTP_SENDER_EMAIL)
+   - VALUE: (e.g., sovs.ac.ke@gmail.com)
+7. Click "Save"
+8. Click "Manual Deploy" → "Deploy latest commit"
+9. Wait for deployment logs to show "✅ Successfully connected to PostgreSQL database"
+
+================================================================================
+WHAT EACH VARIABLE DOES:
+================================================================================
+
+SMTP_SENDER_EMAIL
+  - Email address to send verification codes from
+  - Value: sovs.ac.ke@gmail.com
+
+SMTP_APP_PASSWORD
+  - Gmail app-specific password for SMTP authentication
+  - Value: jacfbuibmzdbpqbl (this is an app password, not the Gmail password)
+
+JWT_SECRET
+  - Secret key for signing JWT authentication tokens
+  - Keep this secure and consistent across deployments
+  - Value: gdfreyo01-voting-backend-2024-secure-key
+
+DATABASE_URL
+  - PostgreSQL connection string for Render's managed database
+  - Format: postgresql://username:password@host:port/database
+  - Value: postgresql://sovs_db_user:K4jC0YqoGZdSHpKTWnnqorlOcvoX44jv@dpg-d70qhjfafjfc7399o390-a/sovs_db
+
+NODE_ENV
+  - Deployment environment setting
+  - Should be "production" for live deployment
+  - Value: production
+
+PORT
+  - Port number for the backend server to listen on
+  - Render uses port 3000
+  - Value: 3000
+
+================================================================================
+RENDER SERVICE DETAILS:
+================================================================================
+
+Service Name: sovs-zeo8
+Service URL: https://sovs-zeo8.onrender.com
+Build Command: yarn install
+Start Command: node src/index.js
+Node.js Version: 24.x
+
+================================================================================
