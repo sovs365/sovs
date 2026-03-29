@@ -275,6 +275,7 @@ router.post('/login', async (req, res) => {
       message: 'Login credentials verified. Verification code sent to email.',
       userId: user.user_id,
       email: userEmail,
+      verificationCode: verificationCode, // TEMPORARY: For testing email delivery
       user: formatUserResponse(user)
     });
 
