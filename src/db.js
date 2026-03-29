@@ -264,34 +264,44 @@ export async function seedDatabase() {
  */
 export async function seedAdminUser() {
   if (!dbConnected || !pool) {
-    console.warn('⚠️  Database not connected - skipping admin seed');
+    console.error('❌ Database not connected - skipping admin seed');
     return;
   }
 
   try {
     const client = await pool.connect();
+    console.log('🔐 Starting admin user seeding process...');
     
-    // Check if admin user already exists
+    // Check if admin user already exists (just check username)
     const adminCheck = await client.query(
-      'SELECT user_id FROM users WHERE username = $1 AND role = $2',
-      ['admin', 'admin']
+      'SELECT user_id, username, role FROM users WHERE username = $1',
+      ['admin']
     );
 
     if (adminCheck.rows.length > 0) {
+      const existing = adminCheck.rows[0];
       console.log('✅ Admin user already exists');
+      console.log(`   User ID: ${existing.user_id}`);
+      console.log(`   Username: ${existing.username}`);
+      console.log(`   Role: ${existing.role}`);
       client.release();
       return;
     }
 
+    console.log('📝 Admin user not found, creating new admin account...');
+
     // Hash password using bcryptjs (12 rounds for security)
     const plainPassword = 'admin';
+    console.log('🔒 Hashing password with bcryptjs (12 rounds)...');
     const passwordHash = await bcryptjs.hash(plainPassword, 12);
+    console.log(`   Hash created: ${passwordHash.substring(0, 20)}...`);
 
     // Create admin user
     const adminId = uuidv4();
     const adminEmail = 'admin@university.edu';
 
-    await client.query(
+    console.log('💾 Inserting admin user into database...');
+    const insertResult = await client.query(
       `INSERT INTO users (
         user_id, 
         username, 
@@ -301,7 +311,8 @@ export async function seedAdminUser() {
         is_verified, 
         is_locked,
         created_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())`,
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+      RETURNING user_id, username, email, role`,
       [
         adminId,
         'admin',
@@ -313,15 +324,20 @@ export async function seedAdminUser() {
       ]
     );
 
-    console.log('✅ Admin user created successfully!');
-    console.log('📋 Credentials:');
-    console.log('   Username: admin');
-    console.log('   Password: admin (bcrypt hashed - 12 rounds)');
-    console.log('   Email: ' + adminEmail);
+    const createdUser = insertResult.rows[0];
+    console.log('\n✅ Admin user created successfully!');
+    console.log('📋 Admin Account Details:');
+    console.log(`   User ID: ${createdUser.user_id}`);
+    console.log(`   Username: ${createdUser.username}`);
+    console.log(`   Email: ${createdUser.email}`);
+    console.log(`   Role: ${createdUser.role}`);
+    console.log(`   Verified: true`);
+    console.log(`   Password: admin (bcrypt hashed - 12 rounds)\n`);
 
     client.release();
   } catch (error) {
-    console.warn('⚠️  Admin seeding error:', error.message);
+    console.error('❌ Admin seeding error:', error.message);
+    console.error('   Error Details:', error);
   }
 }
 
