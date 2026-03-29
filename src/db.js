@@ -304,18 +304,20 @@ export async function seedAdminUser() {
     const insertResult = await client.query(
       `INSERT INTO users (
         user_id, 
-        username, 
+        username,
+        full_name,
         email, 
         password_hash, 
         role, 
         is_verified, 
         is_locked,
         created_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
       RETURNING user_id, username, email, role`,
       [
         adminId,
         'admin',
+        'Administrator',
         adminEmail,
         passwordHash,
         'admin',
