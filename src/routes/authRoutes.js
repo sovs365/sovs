@@ -9,6 +9,15 @@ import verificationCodeManager from '../utils/verificationCodeManager.js';
 const router = express.Router();
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// Version endpoint (for deployment tracking)
+router.get('/version', (req, res) => {
+  res.json({
+    version: '1.2.4',
+    timestamp: new Date().toISOString(),
+    hasVerificationCode: true
+  });
+});
+
 function normalizeEmail(email) {
   return (email || '').trim().toLowerCase();
 }
