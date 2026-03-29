@@ -2,7 +2,7 @@ import express from 'express';
 import bcryptjs from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
 import { generateToken, authenticateToken, getUserById } from '../auth.js';
-import { query } from '../db.js';
+import { query, seedAdminUser } from '../db.js';
 import emailService from '../utils/emailService.js';
 import verificationCodeManager from '../utils/verificationCodeManager.js';
 
@@ -265,7 +265,6 @@ router.post('/login', async (req, res) => {
       message: 'Login credentials verified. Verification code sent to email.',
       userId: user.user_id,
       email: userEmail,
-      verificationCode: process.env.NODE_ENV === 'development' ? verificationCode : undefined,
       user: formatUserResponse(user)
     });
 
@@ -451,9 +450,12 @@ router.post('/verify-password-reset-code', async (req, res) => {
       return res.status(400).json({ error: 'Invalid or expired verification code' });
     }
 
+    // Code is valid - do NOT delete it here, it will be deleted after password reset
+    // This ensures the code isn't reused between verification and password reset
     res.json({ 
       message: 'Verification code is valid. You can now reset your password.',
-      email: normalizedEmail
+      email: normalizedEmail,
+      verified: true
     });
 
   } catch (error) {
@@ -514,9 +516,10 @@ router.post('/reset-password', async (req, res) => {
   }
 });
 
-// Send password reset code (DEPRECATED - kept for backward compatibility)
+// Send password reset code (DEPRECATED - use /send-password-reset-code instead)
 router.post('/send-reset-code', async (req, res) => {
   try {
+    console.warn('⚠️  DEPRECATED ENDPOINT: /send-reset-code - Use /send-password-reset-code instead');
     const { phoneNumber } = req.body;
 
     if (!phoneNumber) {
@@ -548,7 +551,10 @@ router.post('/send-reset-code', async (req, res) => {
       return res.status(500).json({ error: 'Failed to send reset code' });
     }
 
-    res.json({ message: 'Reset code sent to email associated with phone number' });
+    res.json({ 
+      message: 'Reset code sent to email associated with phone number',
+      deprecated: 'This endpoint is deprecated. Please use /api/auth/send-password-reset-code'
+    });
 
   } catch (error) {
     console.error('Reset code error:', error);
@@ -556,9 +562,10 @@ router.post('/send-reset-code', async (req, res) => {
   }
 });
 
-// Verify reset code (DEPRECATED - kept for backward compatibility)
+// Verify reset code (DEPRECATED - use /verify-password-reset-code instead)
 router.post('/verify-reset-code', async (req, res) => {
   try {
+    console.warn('⚠️  DEPRECATED ENDPOINT: /verify-reset-code - Use /verify-password-reset-code instead');
     const { phoneNumber, code } = req.body;
 
     if (!phoneNumber || !code) {
@@ -584,7 +591,10 @@ router.post('/verify-reset-code', async (req, res) => {
       return res.status(400).json({ error: 'Invalid or expired code' });
     }
 
-    res.json({ message: 'Code verified' });
+    res.json({ 
+      message: 'Code verified',
+      deprecated: 'This endpoint is deprecated. Please use /api/auth/verify-password-reset-code'
+    });
 
   } catch (error) {
     console.error('Verify code error:', error);
@@ -592,9 +602,10 @@ router.post('/verify-reset-code', async (req, res) => {
   }
 });
 
-// Reset password with code (DEPRECATED - kept for backward compatibility)
+// Reset password with code (DEPRECATED - use /reset-password instead)
 router.post('/reset-password-deprecated', async (req, res) => {
   try {
+    console.warn('⚠️  DEPRECATED ENDPOINT: /reset-password-deprecated - Use /reset-password instead');
     const { phoneNumber, code, newPassword, confirmPassword } = req.body;
 
     if (!phoneNumber || !code || !newPassword || !confirmPassword) {
@@ -627,7 +638,10 @@ router.post('/reset-password-deprecated', async (req, res) => {
     // Delete used reset code
     verificationCodeManager.deleteCode(user.email, 'password_reset');
 
-    res.json({ message: 'Password reset successfully' });
+    res.json({ 
+      message: 'Password reset successfully',
+      deprecated: 'This endpoint is deprecated. Please use /api/auth/reset-password'
+    });
 
   } catch (error) {
     console.error('Password reset error:', error);
@@ -658,5 +672,47 @@ function formatUserResponse(user) {
     createdAt: user.created_at
   };
 }
+
+// Diagnostic endpoint for admin user seeding (FOR TESTING ONLY)
+router.post('/diagnostic/seed-admin', async (req, res) => {
+  console.log('\n🔐 ADMIN SEEDING DIAGNOSTIC ENDPOINT CALLED');
+  try {
+    // Manually call seedAdminUser
+    await seedAdminUser();
+    
+    // Check if admin user exists now
+    const adminCheck = await query(
+      'SELECT user_id, username, email, role, is_verified FROM users WHERE username = $1',
+      ['admin']
+    );
+
+    if (adminCheck.rows.length > 0) {
+      const admin = adminCheck.rows[0];
+      res.json({
+        status: 'success',
+        message: 'Admin user seeding completed',
+        adminUser: {
+          user_id: admin.user_id,
+          username: admin.username,
+          email: admin.email,
+          role: admin.role,
+          is_verified: admin.is_verified
+        }
+      });
+    } else {
+      res.json({
+        status: 'failed',
+        message: 'Admin seeding ran but user not found in database',
+        adminUser: null
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      message: 'Admin seeding failed',
+      error: error.message
+    });
+  }
+});
 
 export default router;
