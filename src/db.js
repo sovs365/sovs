@@ -263,16 +263,39 @@ export async function seedDatabase() {
  * Password: admin (bcrypt hashed with 12 rounds)
  */
 export async function seedAdminUser() {
+  console.log('\n🔐 ========== ADMIN USER SEEDING START ==========');
+  
   if (!dbConnected || !pool) {
-    console.error('❌ Database not connected - skipping admin seed');
+    console.error('❌ Database not connected - cannot seed admin');
+    console.log('   dbConnected:', dbConnected);
+    console.log('   pool:', pool ? 'exists' : 'null');
+    console.log('🔐 ========== ADMIN USER SEEDING FAILED ==========\n');
     return;
   }
 
+  let client;
   try {
-    const client = await pool.connect();
-    console.log('🔐 Starting admin user seeding process...');
+    client = await pool.connect();
+    console.log('✅ Database client connected');
     
-    // Check if admin user already exists (just check username)
+    // First check if users table exists
+    const tableCheck = await client.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_name = 'users'
+      )
+    `);
+    
+    if (!tableCheck.rows[0].exists) {
+      console.error('❌ Users table does not exist!');
+      console.log('🔐 ========== ADMIN USER SEEDING FAILED ==========\n');
+      client.release();
+      return;
+    }
+    console.log('✅ Users table exists');
+    
+    // Check if admin user already exists
+    console.log('📋 Checking for existing admin user...');
     const adminCheck = await client.query(
       'SELECT user_id, username, role FROM users WHERE username = $1',
       ['admin']
@@ -284,23 +307,31 @@ export async function seedAdminUser() {
       console.log(`   User ID: ${existing.user_id}`);
       console.log(`   Username: ${existing.username}`);
       console.log(`   Role: ${existing.role}`);
+      console.log('🔐 ========== ADMIN USER SEEDING COMPLETE ==========\n');
       client.release();
       return;
     }
-
-    console.log('📝 Admin user not found, creating new admin account...');
+    
+    console.log('📝 Admin user not found, creating new account...');
 
     // Hash password using bcryptjs (12 rounds for security)
     const plainPassword = 'admin';
     console.log('🔒 Hashing password with bcryptjs (12 rounds)...');
     const passwordHash = await bcryptjs.hash(plainPassword, 12);
-    console.log(`   Hash created: ${passwordHash.substring(0, 20)}...`);
+    console.log(`   ✅ Hash created: ${passwordHash.substring(0, 20)}...`);
 
     // Create admin user
     const adminId = uuidv4();
     const adminEmail = 'admin@university.edu';
+    const fullName = 'Administrator';
 
     console.log('💾 Inserting admin user into database...');
+    console.log(`   User ID: ${adminId}`);
+    console.log(`   Username: admin`);
+    console.log(`   Full Name: ${fullName}`);
+    console.log(`   Email: ${adminEmail}`);
+    console.log(`   Role: admin`);
+    
     const insertResult = await client.query(
       `INSERT INTO users (
         user_id, 
@@ -313,11 +344,11 @@ export async function seedAdminUser() {
         is_locked,
         created_at
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
-      RETURNING user_id, username, email, role`,
+      RETURNING user_id, username, full_name, email, role, password_hash`,
       [
         adminId,
         'admin',
-        'Administrator',
+        fullName,
         adminEmail,
         passwordHash,
         'admin',
@@ -328,18 +359,28 @@ export async function seedAdminUser() {
 
     const createdUser = insertResult.rows[0];
     console.log('\n✅ Admin user created successfully!');
-    console.log('📋 Admin Account Details:');
+    console.log('📋 ACCOUNT CREATED:');
     console.log(`   User ID: ${createdUser.user_id}`);
     console.log(`   Username: ${createdUser.username}`);
+    console.log(`   Full Name: ${createdUser.full_name}`);
     console.log(`   Email: ${createdUser.email}`);
     console.log(`   Role: ${createdUser.role}`);
-    console.log(`   Verified: true`);
-    console.log(`   Password: admin (bcrypt hashed - 12 rounds)\n`);
+    console.log(`   Password: admin (bcrypt hashed - 12 rounds)`);
+    console.log(`   Hash: ${createdUser.password_hash.substring(0, 20)}...`);
+    console.log('🔐 ========== ADMIN USER SEEDING COMPLETE ==========\n');
 
-    client.release();
   } catch (error) {
-    console.error('❌ Admin seeding error:', error.message);
-    console.error('   Error Details:', error);
+    console.error('❌ Admin seeding error:');
+    console.error(`   Message: ${error.message}`);
+    console.error(`   Code: ${error.code}`);
+    console.error(`   Detail: ${error.detail}`);
+    console.log('   Stack:', error.stack);
+    console.log('🔐 ========== ADMIN USER SEEDING FAILED ==========\n');
+  } finally {
+    if (client) {
+      client.release();
+      console.log('✅ Database client released');
+    }
   }
 }
 
