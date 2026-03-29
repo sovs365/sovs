@@ -2,7 +2,7 @@ import express from 'express';
 import bcryptjs from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
 import { generateToken, authenticateToken, getUserById } from '../auth.js';
-import { query, seedAdminUser } from '../db.js';
+import { query } from '../db.js';
 import emailService from '../utils/emailService.js';
 import verificationCodeManager from '../utils/verificationCodeManager.js';
 
@@ -672,85 +672,5 @@ function formatUserResponse(user) {
     createdAt: user.created_at
   };
 }
-
-// Diagnostic endpoint for admin user seeding (FOR TESTING ONLY)
-router.post('/diagnostic/seed-admin', async (req, res) => {
-  console.log('\n🔐 ADMIN SEEDING DIAGNOSTIC ENDPOINT CALLED');
-  try {
-    // Manually call seedAdminUser
-    await seedAdminUser();
-    
-    // Check if admin user exists now
-    const adminCheck = await query(
-      'SELECT user_id, username, email, role, is_verified FROM users WHERE username = $1',
-      ['admin']
-    );
-
-    if (adminCheck.rows.length > 0) {
-      const admin = adminCheck.rows[0];
-      res.json({
-        status: 'success',
-        message: 'Admin user seeding completed',
-        adminUser: {
-          user_id: admin.user_id,
-          username: admin.username,
-          email: admin.email,
-          role: admin.role,
-          is_verified: admin.is_verified
-        }
-      });
-    } else {
-      res.json({
-        status: 'failed',
-        message: 'Admin seeding ran but user not found in database',
-        adminUser: null
-      });
-    }
-  } catch (error) {
-    res.status(500).json({
-      status: 'error',
-      message: 'Admin seeding failed',
-      error: error.message
-    });
-  }
-});
-
-// Admin user status check endpoint
-router.get('/diagnostic/admin-status', async (req, res) => {
-  try {
-    const result = await query(
-      'SELECT user_id, username, email, role, is_verified, password_hash FROM users WHERE username = $1',
-      ['admin']
-    );
-
-    if (result.rows.length === 0) {
-      return res.json({
-        status: 'not_found',
-        message: 'Admin user does not exist in database',
-        adminExists: false
-      });
-    }
-
-    const admin = result.rows[0];
-    res.json({
-      status: 'found',
-      adminExists: true,
-      user: {
-        user_id: admin.user_id,
-        username: admin.username,
-        email: admin.email,
-        role: admin.role,
-        is_verified: admin.is_verified,
-        passwordHashPrefix: admin.password_hash.substring(0, 30) + '...'
-      }
-    });
-  } catch (error) {
-    res.status(500).json({
-      status: 'error',
-      message: 'Error checking admin status',
-      error: error.message
-    });
-  }
-});
 
 export default router;
