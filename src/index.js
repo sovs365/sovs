@@ -16,6 +16,9 @@ const app = express();
 const PORT = process.env.PORT || 8080;
 const APP_ENV = process.env.APP_ENV || 'development';
 
+// Trust proxy - required for rate limiting behind Render reverse proxy
+app.set('trust proxy', 1);
+
 // Middleware
 app.use(helmet());
 app.use(morgan('combined'));

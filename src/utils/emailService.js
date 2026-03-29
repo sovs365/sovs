@@ -39,7 +39,7 @@ class EmailService {
 
     const maxRetries = 3;
     const retryDelayMs = 1000;
-    const emailTimeoutMs = 5000; // 5 second timeout per attempt
+    const emailTimeoutMs = 15000; // 15 second timeout per attempt (increased from 5s)
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
@@ -79,7 +79,7 @@ class EmailService {
         if (error.message?.includes('SMTP') || error.message?.includes('auth') || error.code === 'EAUTH') {
           console.error('❌ Email service authentication failed.');
           console.error(`   SMTP Sender: ${this.senderEmail}`);
-          console.error(`   Verify environment variables SMTP_SENDER_EMAIL and SMTP_APP_PASSWORD are set correctly');
+          console.error(`   Verify environment variables SMTP_SENDER_EMAIL and SMTP_APP_PASSWORD are set correctly`);
           return false;
         }
 
