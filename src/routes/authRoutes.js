@@ -50,12 +50,16 @@ router.post('/send-registration-code', async (req, res) => {
       return res.status(500).json({ error: 'Could not prepare verification code' });
     }
 
-    // Send email
-    const emailSent = await emailService.sendVerificationCode(normalizedEmail, code, 'registration');
-
-    if (!emailSent) {
-      return res.status(500).json({ error: 'Failed to send verification code. Please check email configuration.' });
-    }
+    // Send email (non-blocking)
+    emailService.sendVerificationCode(normalizedEmail, code, 'registration')
+      .then(sent => {
+        if (sent) {
+          console.log(`✅ Registration verification code sent to ${normalizedEmail}`);
+        } else {
+          console.warn(`⚠️  Failed to send registration verification code to ${normalizedEmail}`);
+        }
+      })
+      .catch(error => console.error(`❌ Error sending registration code: ${error.message}`));
 
     res.json({ 
       message: 'Verification code sent to email',
@@ -253,14 +257,20 @@ router.post('/login', async (req, res) => {
       return res.status(500).json({ error: 'Could not prepare login verification code' });
     }
 
-    // Send verification code to email
-    const emailSent = await emailService.sendVerificationCode(userEmail, verificationCode, 'login');
+    // Send verification code to email (non-blocking - send in background)
+    emailService.sendVerificationCode(userEmail, verificationCode, 'login')
+      .then(sent => {
+        if (sent) {
+          console.log(`✅ Login verification code sent to ${userEmail}`);
+        } else {
+          console.warn(`⚠️  Failed to send login verification code to ${userEmail}`);
+        }
+      })
+      .catch(error => {
+        console.error(`❌ Error sending login verification code: ${error.message}`);
+      });
 
-    if (!emailSent) {
-      return res.status(500).json({ error: 'Failed to send login verification code. Please check email configuration.' });
-    }
-
-    // Return user info and userId for verification step
+    // Immediately return success - don't wait for email
     res.json({
       message: 'Login credentials verified. Verification code sent to email.',
       userId: user.user_id,
@@ -414,12 +424,16 @@ router.post('/send-password-reset-code', async (req, res) => {
       return res.status(500).json({ error: 'Could not prepare reset code' });
     }
 
-    // Send email
-    const emailSent = await emailService.sendVerificationCode(normalizedEmail, code, 'password_reset');
-
-    if (!emailSent) {
-      return res.status(500).json({ error: 'Failed to send reset code. Please check email configuration.' });
-    }
+    // Send email (non-blocking)
+    emailService.sendVerificationCode(normalizedEmail, code, 'password_reset')
+      .then(sent => {
+        if (sent) {
+          console.log(`✅ Password reset code sent to ${normalizedEmail}`);
+        } else {
+          console.warn(`⚠️  Failed to send password reset code to ${normalizedEmail}`);
+        }
+      })
+      .catch(error => console.error(`❌ Error sending reset code: ${error.message}`));
 
     res.json({ 
       message: 'Password reset code sent to email',
@@ -544,12 +558,16 @@ router.post('/send-reset-code', async (req, res) => {
     // Store code
     verificationCodeManager.storeCode(email, code, 'password_reset');
 
-    // Send email
-    const emailSent = await emailService.sendVerificationCode(email, code, 'password_reset');
-
-    if (!emailSent) {
-      return res.status(500).json({ error: 'Failed to send reset code' });
-    }
+    // Send email (non-blocking)
+    emailService.sendVerificationCode(email, code, 'password_reset')
+      .then(sent => {
+        if (sent) {
+          console.log(`✅ Reset code sent to ${email}`);
+        } else {
+          console.warn(`⚠️  Failed to send reset code to ${email}`);
+        }
+      })
+      .catch(error => console.error(`❌ Error sending reset code: ${error.message}`));
 
     res.json({ 
       message: 'Reset code sent to email associated with phone number',
