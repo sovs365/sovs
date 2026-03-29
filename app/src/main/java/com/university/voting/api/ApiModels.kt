@@ -131,8 +131,9 @@ data class AuthResponse(
 
 data class LoginCodeResponse(
     val message: String,
-    val userId: String,
-    val email: String,
+    val userId: String? = null,
+    val email: String? = null,
+    val token: String? = null,
     val verificationCode: String? = null,
     val user: UserResponse
 )

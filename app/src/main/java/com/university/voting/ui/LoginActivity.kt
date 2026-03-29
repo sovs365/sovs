@@ -7,8 +7,10 @@ import android.widget.Toast
 import androidx.lifecycle.lifecycleScope
 import com.university.voting.api.LoginRequest
 import com.university.voting.api.RetrofitClient
+import com.university.voting.api.UserResponse
 import com.university.voting.databinding.ActivityLoginBinding
 import kotlinx.coroutines.launch
+import java.util.Locale
 
 class LoginActivity : BaseActivity() {
     private lateinit var binding: ActivityLoginBinding
@@ -58,12 +60,19 @@ class LoginActivity : BaseActivity() {
                 if (response.isSuccessful) {
                     val body = response.body()
                     if (body != null) {
-                        // Credentials authenticated successfully
-                        // Transition to email verification
-                        val intent = Intent(this@LoginActivity, LoginVerifyCodeActivity::class.java)
-                        intent.putExtra("userEmail", body.email)
-                        startActivity(intent)
-                        finish()
+                        // Check if admin user (has token directly)
+                        if (!body.token.isNullOrEmpty()) {
+                            // Admin login - token received directly, skip email verification
+                            saveAuthToken(body.token, body.user)
+                            val role = body.user.role.lowercase(Locale.getDefault())
+                            navigateToDashboard(role)
+                        } else {
+                            // Regular user - proceed to email verification
+                            val intent = Intent(this@LoginActivity, LoginVerifyCodeActivity::class.java)
+                            intent.putExtra("userEmail", body.email)
+                            startActivity(intent)
+                      finish()
+                        }
                     } else {
                         Toast.makeText(this@LoginActivity, "Login failed: No response from server", Toast.LENGTH_SHORT).show()
                     }
@@ -77,6 +86,28 @@ class LoginActivity : BaseActivity() {
                 Toast.makeText(this@LoginActivity, "Login error: ${e.message}", Toast.LENGTH_SHORT).show()
             }
         }
+    }
+
+    private fun saveAuthToken(token: String, user: UserResponse) {
+        val prefs = getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
+        prefs.edit()
+            .putString("token", token)
+            .putString("user_id", user.userId)
+            .putString("user_role", user.role)
+            .putString("user_name", user.fullName)
+            .putString("username", user.username)
+            .apply()
+    }
+
+    private fun navigateToDashboard(role: String) {
+        val intent = when (role) {
+            "admin" -> Intent(this, AdminDashboardActivity::class.java)
+            "candidate" -> Intent(this, CandidateDashboardActivity::class.java)
+            else -> Intent(this, VoterDashboardActivity::class.java)
+        }
+        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        startActivity(intent)
+        finish()
     }
 
     private fun extractErrorMessage(raw: String?): String {
