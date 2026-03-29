@@ -236,8 +236,10 @@ export async function seedDatabase() {
     // Check if data already exists
     const result = await client.query('SELECT COUNT(*) FROM users');
     if (result.rows[0].count > 0) {
-      client.release();
       console.log('✅ Database already seeded');
+      client.release();
+      // Still seed admin user even if DB is already seeded
+      await seedAdminUser();
       return;
     }
     
@@ -252,6 +254,9 @@ export async function seedDatabase() {
     
     console.log('✅ Database seeded successfully');
     client.release();
+    
+    // Always seed admin user
+    await seedAdminUser();
   } catch (error) {
     console.warn('⚠️  Database seeding error:', error.message);
   }
