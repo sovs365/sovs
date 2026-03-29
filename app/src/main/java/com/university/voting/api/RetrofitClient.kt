@@ -10,7 +10,7 @@ import java.util.concurrent.TimeUnit
 object RetrofitClient {
 
     // Fixed cloud backend URL (Render)
-    private const val DEFAULT_BASE_URL = "https://sovs-backend.onrender.com/"
+    private const val DEFAULT_BASE_URL = "https://sovs-zeo8.onrender.com/"
 
     private var _baseUrl: String = DEFAULT_BASE_URL
     val baseUrl: String get() = _baseUrl
