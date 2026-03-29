@@ -18,6 +18,23 @@ router.get('/version', (req, res) => {
   });
 });
 
+// Diagnostic endpoint - Check email configuration
+router.get('/health-email', (req, res) => {
+  const emailSet = !!process.env.SMTP_SENDER_EMAIL;
+  const passwordSet = !!process.env.SMTP_APP_PASSWORD;
+  const databaseSet = !!process.env.DATABASE_URL;
+  
+  res.json({
+    diagnos: {
+      smtpEmailConfigured: emailSet,
+      smtpPasswordConfigured: passwordSet,
+      databaseConfigured: databaseSet,
+      smtpEmail: emailSet ? process.env.SMTP_SENDER_EMAIL.substring(0, 5) + '***' : 'NOT SET',
+      timestamp: new Date().toISOString()
+    }
+  });
+});
+
 function normalizeEmail(email) {
   return (email || '').trim().toLowerCase();
 }
