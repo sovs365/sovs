@@ -332,6 +332,7 @@ export async function seedAdminUser() {
     console.log(`   Email: ${adminEmail}`);
     console.log(`   Role: admin`);
     
+    const now = Date.now();
     const insertResult = await client.query(
       `INSERT INTO users (
         user_id, 
@@ -342,8 +343,9 @@ export async function seedAdminUser() {
         role, 
         is_verified, 
         is_locked,
-        created_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+        created_at,
+        updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
       RETURNING user_id, username, full_name, email, role, password_hash`,
       [
         adminId,
@@ -353,7 +355,9 @@ export async function seedAdminUser() {
         passwordHash,
         'admin',
         true,
-        false
+        false,
+        now,
+        now
       ]
     );
 
