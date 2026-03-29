@@ -71,10 +71,15 @@ class EmailService {
 
       } catch (error) {
         console.warn(`⚠️  Email send attempt ${attempt}/${maxRetries} failed: ${error.message}`);
+        console.error(`   Error Code: ${error.code}`);
+        console.error(`   Error Response: ${error.response}`);
+        console.error(`   More details: `, error);
         
         // If it's a configuration error, don't retry
-        if (error.message?.includes('SMTP') || error.message?.includes('auth')) {
-          console.error('❌ Email service authentication failed. Check SMTP configuration.');
+        if (error.message?.includes('SMTP') || error.message?.includes('auth') || error.code === 'EAUTH') {
+          console.error('❌ Email service authentication failed.');
+          console.error(`   SMTP Sender: ${this.senderEmail}`);
+          console.error(`   Verify environment variables SMTP_SENDER_EMAIL and SMTP_APP_PASSWORD are set correctly');
           return false;
         }
 

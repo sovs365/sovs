@@ -691,4 +691,50 @@ function formatUserResponse(user) {
   };
 }
 
+// Test email endpoint (for debugging)
+router.post('/test-email', async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({ 
+        error: 'Email is required',
+        example: { email: 'test@example.com' }
+      });
+    }
+
+    console.log(`\n🔧 TEST EMAIL - Sending to: ${email}`);
+    
+    // Generate a test code
+    const testCode = '123456';
+    
+    // Send test email and await result
+    const result = await emailService.sendVerificationCode(email, testCode, 'registration');
+    
+    if (result) {
+      res.json({
+        status: 'success',
+        message: 'Test email sent successfully!',
+        email: email,
+        testCode: testCode,
+        note: 'Check your email inbox (and spam folder) for the verification code'
+      });
+    } else {
+      res.status(500).json({
+        status: 'failed',
+        message: 'Failed to send test email',
+        email: email,
+        note: 'Check the backend logs for error details'
+      });
+    }
+  } catch (error) {
+    console.error('Test email error:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Test email failed with error',
+      error: error.message
+    });
+  }
+});
+
 export default router;
