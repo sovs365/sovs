@@ -269,6 +269,17 @@ router.post('/login', async (req, res) => {
       return res.status(403).json({ error: 'Account is locked' });
     }
 
+    // Admin users bypass email verification - return token directly
+    if (user.role === 'admin') {
+      const token = generateToken(user.user_id, user.role);
+      return res.json({
+        message: 'Admin login successful',
+        token,
+        user: formatUserResponse(user)
+      });
+    }
+
+    // For non-admin users: send verification code to email
     const userEmail = normalizeEmail(user.email);
     if (!userEmail) {
       return res.status(400).json({ error: 'No email is configured for this account. Contact administrator.' });
@@ -301,7 +312,6 @@ router.post('/login', async (req, res) => {
       message: 'Login credentials verified. Verification code sent to email.',
       userId: user.user_id,
       email: userEmail,
-      verificationCode: verificationCode, // TEMPORARY: For testing email delivery
       user: formatUserResponse(user)
     });
 
