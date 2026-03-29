@@ -1,13 +1,18 @@
-import * as SibApiV3Sdk from '@getbrevo/brevo';
+import nodemailer from 'nodemailer';
 
 class BrevoEmailService {
   constructor() {
-    const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
-    
-    const apiKey = process.env.BREVO_API_KEY || '';
-    apiInstance.setApiKey(SibApiV3Sdk.TransactionalEmailsApiApiKeys.apiKey, apiKey);
-    
-    this.apiInstance = apiInstance;
+    // Initialize Brevo SMTP transporter
+    this.transporter = nodemailer.createTransport({
+      host: 'smtp-relay.brevo.com',
+      port: 587,
+      secure: false,
+      auth: {
+        user: process.env.BREVO_FROM_EMAIL || '',
+        pass: process.env.BREVO_API_KEY || ''
+      }
+    });
+
     this.fromEmail = process.env.BREVO_FROM_EMAIL;
     this.fromName = process.env.BREVO_FROM_NAME || 'SOVS System';
     this.isConfigured = this.validateConfiguration();
@@ -50,33 +55,25 @@ class BrevoEmailService {
 
         const { subject, body } = this.getEmailTemplate(code, type);
 
-        const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
-        sendSmtpEmail.subject = subject;
-        sendSmtpEmail.htmlContent = body;
-        sendSmtpEmail.sender = { 
-          name: this.fromName, 
-          email: this.fromEmail 
-        };
-        sendSmtpEmail.to = [{ 
-          email: normalizedEmail, 
-          name: 'SOVS User' 
-        }];
-        sendSmtpEmail.replyTo = { 
-          email: this.fromEmail 
+        const mailOptions = {
+          from: `${this.fromName} <${this.fromEmail}>`,
+          to: normalizedEmail,
+          subject: subject,
+          html: body
         };
 
-        const response = await this.apiInstance.sendTransacEmail(sendSmtpEmail);
+        const info = await this.transporter.sendMail(mailOptions);
         
         console.log(`✅ Verification email sent to ${normalizedEmail}`);
-        console.log(`   Message ID: ${response.body.messageId}`);
+        console.log(`   Message ID: ${info.messageId}`);
         return true;
 
       } catch (error) {
         console.warn(`⚠️  Email send attempt ${attempt}/${maxRetries} failed: ${error.message}`);
         
-        if (error.response?.status === 401 || error.message?.includes('Unauthorized') || error.message?.includes('API key')) {
-          console.error('❌ Brevo authentication failed.');
-          console.error(`   API Key may be invalid or expired.`);
+        if (error.message?.includes('authentication') || error.message?.includes('Invalid credentials')) {
+          console.error('❌ Brevo SMTP authentication failed.');
+          console.error(`   Check BREVO_API_KEY and BREVO_FROM_EMAIL settings.`);
           return false;
         }
 
@@ -87,7 +84,7 @@ class BrevoEmailService {
           await new Promise(resolve => setTimeout(resolve, delayMs));
         } else {
           console.error('❌ Failed to send verification email after all retries.');
-          console.error(`   Error: ${error.message}`);
+          console.error(`   Last error: ${error.message}`);
           return false;
         }
       }
