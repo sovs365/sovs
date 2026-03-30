@@ -195,6 +195,23 @@ export async function initializeDatabase() {
         expires_at BIGINT NOT NULL,
         created_at BIGINT NOT NULL
       );
+
+      CREATE TABLE IF NOT EXISTS verification_codes (
+        id VARCHAR(36) PRIMARY KEY,
+        email VARCHAR(255) NOT NULL,
+        code VARCHAR(10) NOT NULL,
+        type VARCHAR(50) NOT NULL,
+        expires_at BIGINT NOT NULL,
+        created_at BIGINT NOT NULL,
+        UNIQUE(email, type)
+      );
+
+      CREATE TABLE IF NOT EXISTS verified_registrations (
+        id VARCHAR(36) PRIMARY KEY,
+        email VARCHAR(255) NOT NULL UNIQUE,
+        expires_at BIGINT NOT NULL,
+        created_at BIGINT NOT NULL
+      );
       
       CREATE TABLE IF NOT EXISTS admin_logs (
         log_id VARCHAR(36) PRIMARY KEY,
@@ -209,6 +226,9 @@ export async function initializeDatabase() {
       CREATE INDEX IF NOT EXISTS idx_votes_election_voter ON votes(election_id, voter_id);
       CREATE INDEX IF NOT EXISTS idx_candidates_position ON candidates(position_id);
       CREATE INDEX IF NOT EXISTS idx_elections_position ON elections(position_id);
+      CREATE INDEX IF NOT EXISTS idx_verification_codes_email_type ON verification_codes(email, type);
+      CREATE INDEX IF NOT EXISTS idx_verification_codes_expires_at ON verification_codes(expires_at);
+      CREATE INDEX IF NOT EXISTS idx_verified_registrations_email ON verified_registrations(email);
     `);
     console.log('✅ Database tables initialized');
     return true;

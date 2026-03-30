@@ -8,11 +8,13 @@ import verificationCodeManager from '../utils/verificationCodeManager.js';
 
 const router = express.Router();
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const CODE_EXPIRY_MS = 10 * 60 * 1000; // 10 minutes
+const VERIFIED_REGISTRATION_EXPIRY_MS = 30 * 60 * 1000; // 30 minutes
 
 // Version endpoint (for deployment tracking)
 router.get('/version', (req, res) => {
   res.json({
-    version: '1.2.9',
+    version: '1.2.10',
     timestamp: new Date().toISOString(),
     hasVerificationCode: true
   });
@@ -65,6 +67,146 @@ function isValidEmail(email) {
   return EMAIL_PATTERN.test(normalizeEmail(email));
 }
 
+async function persistVerificationCode(email, code, type = 'registration') {
+  try {
+    const normalizedEmail = normalizeEmail(email);
+    const sanitizedCode = (code || '').toString().trim();
+
+    if (!normalizedEmail || !sanitizedCode) {
+      return false;
+    }
+
+    const now = Date.now();
+    await query(
+      `INSERT INTO verification_codes (id, email, code, type, expires_at, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (email, type)
+       DO UPDATE SET code = EXCLUDED.code, expires_at = EXCLUDED.expires_at, created_at = EXCLUDED.created_at`,
+      [uuidv4(), normalizedEmail, sanitizedCode, type, now + CODE_EXPIRY_MS, now]
+    );
+
+    return true;
+  } catch (error) {
+    console.error('Persist verification code error:', error.message);
+    return false;
+  }
+}
+
+async function verifyCodeFromDb(email, code, type = 'registration') {
+  try {
+    const normalizedEmail = normalizeEmail(email);
+    const sanitizedCode = (code || '').toString().trim();
+
+    if (!normalizedEmail || !sanitizedCode) {
+      return false;
+    }
+
+    const result = await query(
+      `SELECT code, expires_at
+       FROM verification_codes
+       WHERE LOWER(email) = $1 AND type = $2
+       LIMIT 1`,
+      [normalizedEmail, type]
+    );
+
+    if (result.rows.length === 0) {
+      return false;
+    }
+
+    const row = result.rows[0];
+    const expiresAt = Number(row.expires_at || 0);
+
+    if (Date.now() > expiresAt) {
+      await deleteVerificationCodeFromDb(normalizedEmail, type);
+      return false;
+    }
+
+    return (row.code || '').toString().trim() === sanitizedCode;
+  } catch (error) {
+    console.error('Verify code from DB error:', error.message);
+    return false;
+  }
+}
+
+async function deleteVerificationCodeFromDb(email, type = 'registration') {
+  try {
+    const normalizedEmail = normalizeEmail(email);
+    if (!normalizedEmail) return;
+
+    await query(
+      'DELETE FROM verification_codes WHERE LOWER(email) = $1 AND type = $2',
+      [normalizedEmail, type]
+    );
+  } catch (error) {
+    console.error('Delete verification code from DB error:', error.message);
+  }
+}
+
+async function markRegistrationVerifiedPersistent(email) {
+  try {
+    const normalizedEmail = normalizeEmail(email);
+    if (!normalizedEmail) return false;
+
+    const now = Date.now();
+    await query(
+      `INSERT INTO verified_registrations (id, email, expires_at, created_at)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (email)
+       DO UPDATE SET expires_at = EXCLUDED.expires_at, created_at = EXCLUDED.created_at`,
+      [uuidv4(), normalizedEmail, now + VERIFIED_REGISTRATION_EXPIRY_MS, now]
+    );
+
+    return true;
+  } catch (error) {
+    console.error('Mark registration verified (DB) error:', error.message);
+    return false;
+  }
+}
+
+async function isRegistrationVerifiedPersistent(email) {
+  try {
+    const normalizedEmail = normalizeEmail(email);
+    if (!normalizedEmail) return false;
+
+    const result = await query(
+      `SELECT expires_at
+       FROM verified_registrations
+       WHERE LOWER(email) = $1
+       LIMIT 1`,
+      [normalizedEmail]
+    );
+
+    if (result.rows.length === 0) {
+      return false;
+    }
+
+    const expiresAt = Number(result.rows[0].expires_at || 0);
+    if (Date.now() > expiresAt) {
+      await clearRegistrationVerifiedPersistent(normalizedEmail);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Check registration verified (DB) error:', error.message);
+    return false;
+  }
+}
+
+async function clearRegistrationVerifiedPersistent(email) {
+  try {
+    const normalizedEmail = normalizeEmail(email);
+    if (!normalizedEmail) return;
+
+    await query(
+      'DELETE FROM verified_registrations WHERE LOWER(email) = $1',
+      [normalizedEmail]
+    );
+  } catch (error) {
+    console.error('Clear registration verified (DB) error:', error.message);
+  }
+}
+
 function getEmailFailureResponse(errorMessage) {
   const hint = emailProviderService.getConfigurationHint();
   const providerError = emailProviderService.getLastSendError();
@@ -107,9 +249,16 @@ router.post('/send-registration-code', async (req, res) => {
       return res.status(500).json({ error: 'Could not prepare verification code' });
     }
 
+    const codePersisted = await persistVerificationCode(normalizedEmail, code, 'registration');
+    if (!codePersisted) {
+      verificationCodeManager.deleteCode(normalizedEmail, 'registration');
+      return res.status(500).json({ error: 'Could not persist verification code' });
+    }
+
     const sent = await emailProviderService.sendVerificationCode(normalizedEmail, code, 'registration');
     if (!sent) {
       verificationCodeManager.deleteCode(normalizedEmail, 'registration');
+      await deleteVerificationCodeFromDb(normalizedEmail, 'registration');
       return res.status(503).json(
         getEmailFailureResponse('Unable to send verification code email. Please try again later.')
       );
@@ -139,8 +288,11 @@ router.post('/verify-registration-code', async (req, res) => {
       return res.status(400).json({ error: 'Email and code are required' });
     }
 
-    // Verify the code
-    const isValid = verificationCodeManager.verifyCode(normalizedEmail, normalizedCode, 'registration');
+    // Verify the code from memory first, then DB fallback for reliability across restarts
+    let isValid = verificationCodeManager.verifyCode(normalizedEmail, normalizedCode, 'registration');
+    if (!isValid) {
+      isValid = await verifyCodeFromDb(normalizedEmail, normalizedCode, 'registration');
+    }
 
     if (!isValid) {
       return res.status(400).json({ error: 'Invalid or expired verification code' });
@@ -148,7 +300,9 @@ router.post('/verify-registration-code', async (req, res) => {
 
     // Code is valid - delete it so it can't be reused
     verificationCodeManager.deleteCode(normalizedEmail, 'registration');
+    await deleteVerificationCodeFromDb(normalizedEmail, 'registration');
     verificationCodeManager.markRegistrationVerified(normalizedEmail);
+    await markRegistrationVerifiedPersistent(normalizedEmail);
 
     res.json({ 
       message: 'Email verified successfully',
@@ -195,8 +349,12 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Invalid email format' });
     }
 
-    if (requiresEmailVerification && !verificationCodeManager.isRegistrationVerified(normalizedEmail)) {
-      return res.status(403).json({ error: 'Email verification required before registration' });
+    if (requiresEmailVerification) {
+      const verifiedInMemory = verificationCodeManager.isRegistrationVerified(normalizedEmail);
+      const verifiedInDb = await isRegistrationVerifiedPersistent(normalizedEmail);
+      if (!verifiedInMemory && !verifiedInDb) {
+        return res.status(403).json({ error: 'Email verification required before registration' });
+      }
     }
 
     // Check if username exists
@@ -261,6 +419,7 @@ router.post('/register', async (req, res) => {
     }
 
     verificationCodeManager.clearRegistrationVerified(normalizedEmail);
+    await clearRegistrationVerifiedPersistent(normalizedEmail);
 
     // Generate token
     const token = generateToken(userId, normalizedRole);
@@ -346,9 +505,16 @@ router.post('/login', async (req, res) => {
       return res.status(500).json({ error: 'Could not prepare login verification code' });
     }
 
+    const codePersisted = await persistVerificationCode(userEmail, verificationCode, 'login');
+    if (!codePersisted) {
+      verificationCodeManager.deleteCode(userEmail, 'login');
+      return res.status(500).json({ error: 'Could not persist login verification code' });
+    }
+
     const sent = await emailProviderService.sendVerificationCode(userEmail, verificationCode, 'login');
     if (!sent) {
       verificationCodeManager.deleteCode(userEmail, 'login');
+      await deleteVerificationCodeFromDb(userEmail, 'login');
       return res.status(503).json(
         getEmailFailureResponse('Unable to send login verification code email. Please try again later.')
       );
@@ -381,8 +547,11 @@ router.post('/verify-login-code', async (req, res) => {
       return res.status(400).json({ error: 'Email and code are required' });
     }
 
-    // Verify the code
-    const isValid = verificationCodeManager.verifyCode(normalizedEmail, normalizedCode, 'login');
+    // Verify the code from memory first, then DB fallback for reliability across restarts
+    let isValid = verificationCodeManager.verifyCode(normalizedEmail, normalizedCode, 'login');
+    if (!isValid) {
+      isValid = await verifyCodeFromDb(normalizedEmail, normalizedCode, 'login');
+    }
 
     if (!isValid) {
       return res.status(400).json({ error: 'Invalid or expired verification code' });
@@ -390,6 +559,7 @@ router.post('/verify-login-code', async (req, res) => {
 
     // Code is valid - delete it so it can't be reused
     verificationCodeManager.deleteCode(normalizedEmail, 'login');
+    await deleteVerificationCodeFromDb(normalizedEmail, 'login');
 
     // Get user info
     const userResult = await query(
@@ -510,9 +680,16 @@ router.post('/send-password-reset-code', async (req, res) => {
       return res.status(500).json({ error: 'Could not prepare reset code' });
     }
 
+    const codePersisted = await persistVerificationCode(normalizedEmail, code, 'password_reset');
+    if (!codePersisted) {
+      verificationCodeManager.deleteCode(normalizedEmail, 'password_reset');
+      return res.status(500).json({ error: 'Could not persist reset code' });
+    }
+
     const sent = await emailProviderService.sendVerificationCode(normalizedEmail, code, 'password_reset');
     if (!sent) {
       verificationCodeManager.deleteCode(normalizedEmail, 'password_reset');
+      await deleteVerificationCodeFromDb(normalizedEmail, 'password_reset');
       return res.status(503).json(
         getEmailFailureResponse('Unable to send password reset code email. Please try again later.')
       );
@@ -542,8 +719,11 @@ router.post('/verify-password-reset-code', async (req, res) => {
       return res.status(400).json({ error: 'Email and code are required' });
     }
 
-    // Verify the code
-    const isValid = verificationCodeManager.verifyCode(normalizedEmail, normalizedCode, 'password_reset');
+    // Verify the code from memory first, then DB fallback for reliability across restarts
+    let isValid = verificationCodeManager.verifyCode(normalizedEmail, normalizedCode, 'password_reset');
+    if (!isValid) {
+      isValid = await verifyCodeFromDb(normalizedEmail, normalizedCode, 'password_reset');
+    }
 
     if (!isValid) {
       return res.status(400).json({ error: 'Invalid or expired verification code' });
@@ -578,8 +758,11 @@ router.post('/reset-password', async (req, res) => {
       return res.status(400).json({ error: 'Passwords do not match' });
     }
 
-    // Verify code one more time
-    const isValid = verificationCodeManager.verifyCode(normalizedEmail, normalizedCode, 'password_reset');
+    // Verify code one more time (memory first, then DB fallback)
+    let isValid = verificationCodeManager.verifyCode(normalizedEmail, normalizedCode, 'password_reset');
+    if (!isValid) {
+      isValid = await verifyCodeFromDb(normalizedEmail, normalizedCode, 'password_reset');
+    }
 
     if (!isValid) {
       return res.status(400).json({ error: 'Invalid or expired verification code' });
@@ -606,6 +789,7 @@ router.post('/reset-password', async (req, res) => {
 
     // Delete used reset code
     verificationCodeManager.deleteCode(normalizedEmail, 'password_reset');
+    await deleteVerificationCodeFromDb(normalizedEmail, 'password_reset');
 
     res.json({ message: 'Password reset successfully' });
 
