@@ -1,6 +1,7 @@
 import express from 'express';
 import bcryptjs from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
+import crypto from 'crypto';
 import { generateToken, authenticateToken, getUserById } from '../auth.js';
 import { query } from '../db.js';
 import emailProviderService from '../utils/emailProviderService.js';
@@ -14,7 +15,7 @@ const VERIFIED_REGISTRATION_EXPIRY_MS = 30 * 60 * 1000; // 30 minutes
 // Version endpoint (for deployment tracking)
 router.get('/version', (req, res) => {
   res.json({
-    version: '1.2.11',
+    version: '1.2.12',
     timestamp: new Date().toISOString(),
     hasVerificationCode: true
   });
@@ -69,6 +70,38 @@ function normalizeCode(code) {
 
 function isValidEmail(email) {
   return EMAIL_PATTERN.test(normalizeEmail(email));
+}
+
+function getRegistrationCodeWindow(nowMs = Date.now()) {
+  return Math.floor(nowMs / CODE_EXPIRY_MS);
+}
+
+function generateDeterministicRegistrationCode(email, window = getRegistrationCodeWindow()) {
+  const normalizedEmail = normalizeEmail(email);
+  const secret = process.env.REGISTRATION_CODE_SECRET || process.env.JWT_SECRET || 'sovs-registration-fallback-secret';
+  const payload = `${normalizedEmail}:${window}`;
+  const digest = crypto.createHmac('sha256', secret).update(payload).digest('hex');
+  const number = (parseInt(digest.slice(0, 12), 16) % 900000) + 100000;
+  return number.toString();
+}
+
+function verifyDeterministicRegistrationCode(email, code) {
+  const normalizedEmail = normalizeEmail(email);
+  const normalizedCode = normalizeCode(code);
+  if (!normalizedEmail || !normalizedCode) {
+    return false;
+  }
+
+  const currentWindow = getRegistrationCodeWindow();
+  // Accept previous/current/next window to tolerate clock drift and delivery delays.
+  for (const offset of [-1, 0, 1]) {
+    const expected = generateDeterministicRegistrationCode(normalizedEmail, currentWindow + offset);
+    if (expected === normalizedCode) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 async function persistVerificationCode(email, code, type = 'registration') {
@@ -277,10 +310,8 @@ router.post('/send-registration-code', async (req, res) => {
       return res.status(400).json({ error: 'Email already registered' });
     }
 
-    // Reuse active code if one already exists to avoid invalidating recently sent emails
-    const activeCode = verificationCodeManager.getActiveCode(normalizedEmail, 'registration') ||
-      await getActiveCodeFromDb(normalizedEmail, 'registration');
-    const code = activeCode || Math.floor(100000 + Math.random() * 900000).toString();
+    // Deterministic registration code avoids false mismatches across retries/restarts.
+    const code = generateDeterministicRegistrationCode(normalizedEmail);
 
     // Store code in memory manager
     const codeStored = verificationCodeManager.storeCode(normalizedEmail, code, 'registration');
@@ -327,10 +358,17 @@ router.post('/verify-registration-code', async (req, res) => {
       return res.status(400).json({ error: 'Email and code are required' });
     }
 
-    // Verify the code from memory first, then DB fallback for reliability across restarts
+    // Verify from memory first, then DB fallback, then deterministic fallback.
+    // This avoids false negatives when process memory is recycled or DB writes lag.
     let isValid = verificationCodeManager.verifyCode(normalizedEmail, normalizedCode, 'registration');
+    let verificationSource = 'memory';
     if (!isValid) {
       isValid = await verifyCodeFromDb(normalizedEmail, normalizedCode, 'registration');
+      verificationSource = isValid ? 'db' : 'none';
+    }
+    if (!isValid) {
+      isValid = verifyDeterministicRegistrationCode(normalizedEmail, normalizedCode);
+      verificationSource = isValid ? 'deterministic' : 'none';
     }
 
     if (!isValid) {
@@ -342,6 +380,7 @@ router.post('/verify-registration-code', async (req, res) => {
     await deleteVerificationCodeFromDb(normalizedEmail, 'registration');
     verificationCodeManager.markRegistrationVerified(normalizedEmail);
     await markRegistrationVerifiedPersistent(normalizedEmail);
+    console.log(`✅ Registration code verified for ${normalizedEmail} via ${verificationSource}`);
 
     res.json({ 
       message: 'Email verified successfully',
