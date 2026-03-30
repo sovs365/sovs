@@ -50,7 +50,7 @@ class BrevoEmailService {
   async sendViaHttpApi(recipientEmail, subject, htmlBody) {
     const endpoint = `${this.apiBaseUrl}/smtp/email`;
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
+    const timeoutId = setTimeout(() => controller.abort(), 45000);
 
     try {
       const response = await fetch(endpoint, {
@@ -112,31 +112,32 @@ class BrevoEmailService {
         console.log(`OK Verification email sent to ${normalizedEmail} via Brevo API`);
         return true;
       } catch (apiError) {
-        this.lastError = `Brevo API error: ${apiError.message}`;
+        const apiMessage = `Brevo API error: ${apiError.message}`;
+        this.lastError = apiMessage;
         console.warn(`WARN Brevo API attempt ${attempt}/${maxRetries} failed: ${apiError.message}`);
-      }
+        try {
+          const mailOptions = {
+            from: `${this.fromName} <${this.fromEmail}>`,
+            to: normalizedEmail,
+            subject,
+            html: body
+          };
 
-      try {
-        const mailOptions = {
-          from: `${this.fromName} <${this.fromEmail}>`,
-          to: normalizedEmail,
-          subject,
-          html: body
-        };
+          const info = await this.transporter.sendMail(mailOptions);
+          this.lastError = null;
+          console.log(`OK Verification email sent to ${normalizedEmail} via Brevo SMTP`);
+          console.log(`   Message ID: ${info.messageId}`);
+          return true;
+        } catch (smtpError) {
+          const smtpMessage = `Brevo SMTP error: ${smtpError.message}`;
+          this.lastError = `${apiMessage}; ${smtpMessage}`;
+          console.warn(`WARN Brevo SMTP fallback attempt ${attempt}/${maxRetries} failed: ${smtpError.message}`);
 
-        const info = await this.transporter.sendMail(mailOptions);
-        this.lastError = null;
-        console.log(`OK Verification email sent to ${normalizedEmail} via Brevo SMTP`);
-        console.log(`   Message ID: ${info.messageId}`);
-        return true;
-      } catch (smtpError) {
-        this.lastError = `Brevo SMTP error: ${smtpError.message}`;
-        console.warn(`WARN Brevo SMTP fallback attempt ${attempt}/${maxRetries} failed: ${smtpError.message}`);
-
-        if (smtpError.message?.includes('authentication') || smtpError.message?.includes('Invalid credentials')) {
-          console.error('ERROR Brevo SMTP authentication failed.');
-          console.error('      Check BREVO_API_KEY and BREVO_SMTP_LOGIN/BREVO_FROM_EMAIL settings.');
-          return false;
+          if (smtpError.message?.includes('authentication') || smtpError.message?.includes('Invalid credentials')) {
+            console.error('ERROR Brevo SMTP authentication failed.');
+            console.error('      Check BREVO_API_KEY and BREVO_SMTP_LOGIN/BREVO_FROM_EMAIL settings.');
+            return false;
+          }
         }
       }
 

@@ -12,7 +12,7 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // Version endpoint (for deployment tracking)
 router.get('/version', (req, res) => {
   res.json({
-    version: '1.2.6',
+    version: '1.2.7',
     timestamp: new Date().toISOString(),
     hasVerificationCode: true
   });
