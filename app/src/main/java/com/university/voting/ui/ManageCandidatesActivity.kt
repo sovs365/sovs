@@ -8,6 +8,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
+import android.widget.CheckBox
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -25,6 +26,8 @@ class ManageCandidatesActivity : AppCompatActivity() {
     private lateinit var adapter: CandidatesAdapter
     private val repository = VotingRepository()
     private var token: String = ""
+    private lateinit var cbSelectAllUnverifiedCandidates: CheckBox
+    private lateinit var btnVerifySelectedCandidates: Button
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -41,6 +44,17 @@ class ManageCandidatesActivity : AppCompatActivity() {
         }
 
         setupRecyclerView()
+        cbSelectAllUnverifiedCandidates = findViewById(R.id.cbSelectAllUnverifiedCandidates)
+        btnVerifySelectedCandidates = findViewById(R.id.btnVerifySelectedCandidates)
+
+        cbSelectAllUnverifiedCandidates.setOnCheckedChangeListener { _, isChecked ->
+            adapter.selectAllUnverified(isChecked)
+        }
+
+        btnVerifySelectedCandidates.setOnClickListener {
+            verifySelectedUnverifiedCandidates()
+        }
+
         loadCandidates()
     }
 
@@ -75,6 +89,37 @@ class ManageCandidatesActivity : AppCompatActivity() {
             }.onFailure { error ->
                 Toast.makeText(this@ManageCandidatesActivity, "Failed: ${error.message}", Toast.LENGTH_SHORT).show()
             }
+            binding.progressBar.visibility = View.GONE
+        }
+    }
+
+    private fun verifySelectedUnverifiedCandidates() {
+        val selectedUnverified = adapter.getSelectedUnverifiedCandidates()
+        if (selectedUnverified.isEmpty()) {
+            Toast.makeText(this, "No unverified candidates selected", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        lifecycleScope.launch {
+            binding.progressBar.visibility = View.VISIBLE
+            var successCount = 0
+            var failureCount = 0
+
+            for (candidate in selectedUnverified) {
+                repository.verifyCandidate(token, candidate.candidateId, true)
+                    .onSuccess { successCount += 1 }
+                    .onFailure { failureCount += 1 }
+            }
+
+            val message = if (failureCount == 0) {
+                "Verified $successCount candidate(s)"
+            } else {
+                "Verified $successCount candidate(s), failed $failureCount"
+            }
+
+            Toast.makeText(this@ManageCandidatesActivity, message, Toast.LENGTH_SHORT).show()
+            cbSelectAllUnverifiedCandidates.isChecked = false
+            loadCandidates()
             binding.progressBar.visibility = View.GONE
         }
     }
@@ -124,10 +169,26 @@ class ManageCandidatesActivity : AppCompatActivity() {
     ) : RecyclerView.Adapter<CandidatesAdapter.CandidateViewHolder>() {
 
         private var candidates: List<CandidateResponse> = emptyList()
+        private val selectedCandidateIds = mutableSetOf<String>()
 
         fun setCandidates(newCandidates: List<CandidateResponse>) {
             candidates = newCandidates
+            selectedCandidateIds.removeAll { selectedId -> candidates.none { it.candidateId == selectedId } }
             notifyDataSetChanged()
+        }
+
+        fun selectAllUnverified(select: Boolean) {
+            selectedCandidateIds.clear()
+            if (select) {
+                selectedCandidateIds.addAll(candidates.filter { !it.isVerified }.map { it.candidateId })
+            }
+            notifyDataSetChanged()
+        }
+
+        fun getSelectedUnverifiedCandidates(): List<CandidateResponse> {
+            return candidates.filter { candidate ->
+                !candidate.isVerified && selectedCandidateIds.contains(candidate.candidateId)
+            }
         }
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): CandidateViewHolder {
@@ -143,6 +204,7 @@ class ManageCandidatesActivity : AppCompatActivity() {
 
         inner class CandidateViewHolder(view: View) : RecyclerView.ViewHolder(view) {
             private val tvName = view.findViewById<TextView>(R.id.tvCandidateName)
+            private val cbSelect = view.findViewById<CheckBox>(R.id.cbSelectCandidate)
             private val tvPosition = view.findViewById<TextView>(R.id.tvPosition)
             private val tvStatus = view.findViewById<TextView>(R.id.tvStatus)
             private val btnVerify = view.findViewById<Button>(R.id.btnVerify)
@@ -153,13 +215,26 @@ class ManageCandidatesActivity : AppCompatActivity() {
             fun bind(item: CandidateResponse) {
                 tvName.text = item.fullName
                 tvPosition.text = item.positionName ?: "Unknown Position"
+                cbSelect.setOnCheckedChangeListener(null)
+                cbSelect.isChecked = selectedCandidateIds.contains(item.candidateId)
+                cbSelect.isEnabled = !item.isVerified
 
                 if (item.isVerified) {
                     tvStatus.text = "Status: Verified"
                     tvStatus.setTextColor(android.graphics.Color.GREEN)
+                    cbSelect.text = "Already verified"
                 } else {
                     tvStatus.text = "Status: Pending"
                     tvStatus.setTextColor(android.graphics.Color.YELLOW)
+                    cbSelect.text = "Select for bulk verify"
+                }
+
+                cbSelect.setOnCheckedChangeListener { _, isChecked ->
+                    if (isChecked) {
+                        selectedCandidateIds.add(item.candidateId)
+                    } else {
+                        selectedCandidateIds.remove(item.candidateId)
+                    }
                 }
 
                 btnVerify.setOnClickListener { onApprove(item) }

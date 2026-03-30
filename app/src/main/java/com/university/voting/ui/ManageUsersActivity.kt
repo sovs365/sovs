@@ -4,9 +4,12 @@ import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.util.SparseBooleanArray
 import android.view.LayoutInflater
 import android.view.View
+import android.widget.Button
 import android.widget.ArrayAdapter
+import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.ListView
 import android.widget.ProgressBar
@@ -21,6 +24,8 @@ import kotlinx.coroutines.launch
 class ManageUsersActivity : BaseActivity() {
     private lateinit var listView: ListView
     private lateinit var progressBar: ProgressBar
+    private lateinit var cbSelectAllUnverifiedUsers: CheckBox
+    private lateinit var btnVerifySelectedUsers: Button
     private val repository = VotingRepository()
     private var users: List<UserResponse> = emptyList()
     private var token: String = ""
@@ -40,13 +45,25 @@ class ManageUsersActivity : BaseActivity() {
 
         listView = findViewById(R.id.listUsers)
         progressBar = findViewById(R.id.progressBar)
+        cbSelectAllUnverifiedUsers = findViewById(R.id.cbSelectAllUnverifiedUsers)
+        btnVerifySelectedUsers = findViewById(R.id.btnVerifySelectedUsers)
+        listView.choiceMode = ListView.CHOICE_MODE_MULTIPLE
 
         loadUsers()
 
-        listView.setOnItemClickListener { _, _, position, _ ->
+        listView.setOnItemLongClickListener { _, _, position, _ ->
             if (position in users.indices) {
                 showUserActions(users[position])
             }
+            true
+        }
+
+        cbSelectAllUnverifiedUsers.setOnCheckedChangeListener { _, isChecked ->
+            applySelectAllUnverified(isChecked)
+        }
+
+        btnVerifySelectedUsers.setOnClickListener {
+            verifySelectedUnverifiedUsers()
         }
     }
 
@@ -62,9 +79,10 @@ class ManageUsersActivity : BaseActivity() {
                     }
                     listView.adapter = ArrayAdapter(
                         this@ManageUsersActivity,
-                        android.R.layout.simple_list_item_1,
+                        android.R.layout.simple_list_item_multiple_choice,
                         labels
                     )
+                    clearSelections()
                 }.onFailure { error ->
                     Toast.makeText(this@ManageUsersActivity, "Error: ${error.message}", Toast.LENGTH_SHORT).show()
                 }
@@ -73,6 +91,62 @@ class ManageUsersActivity : BaseActivity() {
             } finally {
                 progressBar.visibility = View.GONE
             }
+        }
+    }
+
+    private fun clearSelections() {
+        for (i in users.indices) {
+            listView.setItemChecked(i, false)
+        }
+        if (cbSelectAllUnverifiedUsers.isChecked) {
+            cbSelectAllUnverifiedUsers.setOnCheckedChangeListener(null)
+            cbSelectAllUnverifiedUsers.isChecked = false
+            cbSelectAllUnverifiedUsers.setOnCheckedChangeListener { _, isChecked ->
+                applySelectAllUnverified(isChecked)
+            }
+        }
+    }
+
+    private fun applySelectAllUnverified(select: Boolean) {
+        for (i in users.indices) {
+            val isUnverified = !users[i].isVerified
+            listView.setItemChecked(i, select && isUnverified)
+        }
+    }
+
+    private fun verifySelectedUnverifiedUsers() {
+        val checkedPositions: SparseBooleanArray = listView.checkedItemPositions
+        val selectedUnverifiedUsers = mutableListOf<UserResponse>()
+        for (i in users.indices) {
+            if (checkedPositions.get(i) && !users[i].isVerified) {
+                selectedUnverifiedUsers.add(users[i])
+            }
+        }
+
+        if (selectedUnverifiedUsers.isEmpty()) {
+            Toast.makeText(this, "No unverified users selected", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        lifecycleScope.launch {
+            progressBar.visibility = View.VISIBLE
+            var successCount = 0
+            var failureCount = 0
+
+            for (user in selectedUnverifiedUsers) {
+                repository.verifyUser(token, user.userId, true)
+                    .onSuccess { successCount += 1 }
+                    .onFailure { failureCount += 1 }
+            }
+
+            val message = if (failureCount == 0) {
+                "Verified $successCount user(s)"
+            } else {
+                "Verified $successCount user(s), failed $failureCount"
+            }
+            Toast.makeText(this@ManageUsersActivity, message, Toast.LENGTH_SHORT).show()
+            loadUsers()
+            progressBar.visibility = View.GONE
         }
     }
 

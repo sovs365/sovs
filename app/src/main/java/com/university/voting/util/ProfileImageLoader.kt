@@ -57,9 +57,9 @@ object ProfileImageLoader {
         return try {
             context.contentResolver.openInputStream(uri)?.use { stream ->
                 val bitmap = BitmapFactory.decodeStream(stream) ?: return null
-                val scaled = scaleBitmap(bitmap, maxDimension = 512)
+                val scaled = scaleBitmap(bitmap, maxDimension = 320)
                 val output = ByteArrayOutputStream()
-                scaled.compress(Bitmap.CompressFormat.JPEG, 78, output)
+                scaled.compress(Bitmap.CompressFormat.JPEG, 70, output)
                 val encoded = Base64.encodeToString(output.toByteArray(), Base64.NO_WRAP)
                 "data:image/jpeg;base64,$encoded"
             }

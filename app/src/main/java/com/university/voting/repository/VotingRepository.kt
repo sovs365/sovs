@@ -7,6 +7,16 @@ import kotlinx.coroutines.withContext
 class VotingRepository {
     private val api = RetrofitClient.apiService
 
+    private fun extractErrorMessage(raw: String?, fallback: String): String {
+        val body = raw?.trim().orEmpty()
+        if (body.isBlank()) return fallback
+        val errorRegex = Regex("\"error\"\\s*:\\s*\"([^\"]+)\"")
+        val messageRegex = Regex("\"message\"\\s*:\\s*\"([^\"]+)\"")
+        return errorRegex.find(body)?.groupValues?.getOrNull(1)
+            ?: messageRegex.find(body)?.groupValues?.getOrNull(1)
+            ?: body
+    }
+
     // ==================== AUTH ====================
 
     suspend fun register(request: RegisterRequest): Result<AuthResponse> = withContext(Dispatchers.IO) {
@@ -66,13 +76,16 @@ class VotingRepository {
                     email = email,
                     phoneNumber = phoneNumber,
                     manifesto = manifesto,
-                    profilePhotoPath = profilePhotoPath
+                    profilePhotoPath = profilePhotoPath,
+                    profilePhotoBase64 = profilePhotoPath,
+                    profileImageBase64 = profilePhotoPath,
+                    profileImage = profilePhotoPath
                 )
             )
             if (response.isSuccessful && response.body() != null) {
                 Result.success(response.body()!!.user)
             } else {
-                Result.failure(Exception(response.errorBody()?.string() ?: "Failed to update profile"))
+                Result.failure(Exception(extractErrorMessage(response.errorBody()?.string(), "Failed to update profile")))
             }
         } catch (e: Exception) {
             Result.failure(e)

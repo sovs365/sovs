@@ -21,6 +21,14 @@
             android:textStyle="bold"
             android:textColor="@color/white" />
 
+        <CheckBox
+            android:id="@+id/cbSelectCandidate"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Select for bulk verify"
+            android:textColor="@color/on_background_secondary"
+            android:layout_marginTop="4dp" />
+
         <TextView
             android:id="@+id/tvPosition"
             android:layout_width="match_parent"

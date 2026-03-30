@@ -14,6 +14,7 @@ import androidx.lifecycle.lifecycleScope
 import com.university.voting.api.CourseResponse
 import com.university.voting.api.FacultyResponse
 import com.university.voting.api.PositionResponse
+import com.university.voting.api.SubjectCombinationResponse
 import com.university.voting.databinding.ActivityRegistrationBinding
 import com.university.voting.repository.VotingRepository
 import com.university.voting.util.ProfileImageLoader
@@ -27,6 +28,7 @@ class RegistrationActivity : BaseActivity() {
     private var availablePositions: List<PositionResponse> = emptyList()
     private var faculties: List<FacultyResponse> = emptyList()
     private var courses: List<CourseResponse> = emptyList()
+    private var subjectCombinations: List<SubjectCombinationResponse> = emptyList()
     private var isUpdatingRoleSelection = false
 
     private val REQ_CV = 101
@@ -102,6 +104,7 @@ class RegistrationActivity : BaseActivity() {
         binding.spinnerFaculty.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
                 val selectedFaculty = faculties.getOrNull(position) ?: return
+                clearSubjectSelection()
                 viewModel.loadCoursesByFaculty(selectedFaculty.facultyId)
             }
             override fun onNothingSelected(p0: AdapterView<*>?) {}
@@ -111,6 +114,17 @@ class RegistrationActivity : BaseActivity() {
     private fun updateCourseSpinner() {
         val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, courses.map { it.name })
         binding.spinnerCourse.adapter = adapter
+        binding.spinnerCourse.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                val selectedFacultyName = faculties.getOrNull(binding.spinnerFaculty.selectedItemPosition)?.name
+                val selectedCourse = courses.getOrNull(position)
+                loadSubjectCombinationIfRequired(selectedFacultyName, selectedCourse)
+            }
+
+            override fun onNothingSelected(parent: AdapterView<*>?) {
+                clearSubjectSelection()
+            }
+        }
     }
 
     private fun updatePositionSpinner() {
@@ -122,6 +136,64 @@ class RegistrationActivity : BaseActivity() {
     private fun loadDataFromBackend() {
         viewModel.loadFaculties()
         viewModel.loadAllPositions()
+    }
+
+    private fun clearSubjectSelection() {
+        subjectCombinations = emptyList()
+        binding.spinnerSubject.visibility = View.GONE
+        binding.spinnerSubject.adapter = null
+    }
+
+    private fun isEducationFaculty(facultyName: String?): Boolean {
+        val normalized = facultyName.orEmpty().trim().lowercase(Locale.getDefault())
+        return normalized.contains("education")
+    }
+
+    private fun isEducationCourseRequiringSubjects(courseName: String?): Boolean {
+        val normalized = courseName.orEmpty().trim().lowercase(Locale.getDefault())
+        return normalized == "education arts" || normalized == "education science"
+    }
+
+    private fun loadSubjectCombinationIfRequired(facultyName: String?, selectedCourse: CourseResponse?) {
+        val shouldShowSubjectSpinner = isEducationFaculty(facultyName) &&
+            isEducationCourseRequiringSubjects(selectedCourse?.name)
+
+        if (!shouldShowSubjectSpinner || selectedCourse == null) {
+            clearSubjectSelection()
+            return
+        }
+
+        lifecycleScope.launch {
+            val repository = VotingRepository()
+            repository.getSubjectsByCourse(selectedCourse.courseId).onSuccess { subjects ->
+                subjectCombinations = subjects
+                if (subjectCombinations.isEmpty()) {
+                    clearSubjectSelection()
+                    Toast.makeText(
+                        this@RegistrationActivity,
+                        "No subject combinations found for ${selectedCourse.name}. Please contact admin.",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    return@onSuccess
+                }
+
+                binding.spinnerSubject.visibility = View.VISIBLE
+                binding.spinnerSubject.adapter = ArrayAdapter(
+                    this@RegistrationActivity,
+                    android.R.layout.simple_spinner_item,
+                    subjectCombinations.map { it.name }
+                ).apply {
+                    setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+                }
+            }.onFailure {
+                clearSubjectSelection()
+                Toast.makeText(
+                    this@RegistrationActivity,
+                    "Failed to load subject combinations",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
     }
 
     private fun setupRoleSelection() {
@@ -292,6 +364,11 @@ class RegistrationActivity : BaseActivity() {
         val role = when {
             binding.rbCandidate.isChecked -> "candidate"
             else -> "voter"
+        }
+
+        if (binding.spinnerSubject.visibility == View.VISIBLE && subjectCombination.isNullOrBlank()) {
+            Toast.makeText(this, "Please select a subject combination", Toast.LENGTH_SHORT).show()
+            return
         }
 
         var positionId: String? = null

@@ -17,10 +17,25 @@
             android:textStyle="bold"
             android:gravity="center" />
 
+        <CheckBox
+            android:id="@+id/cbSelectAllUnverifiedUsers"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Select All Unverified Users"
+            android:layout_marginTop="12dp" />
+
+        <Button
+            android:id="@+id/btnVerifySelectedUsers"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Verify Selected Users"
+            android:layout_marginTop="8dp" />
+
         <ListView
             android:id="@+id/listUsers"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
             android:layout_marginTop="12dp" />
 
     </LinearLayout>

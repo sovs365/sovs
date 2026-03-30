@@ -105,7 +105,14 @@ data class UpdateProfileRequest(
     val email: String? = null,
     val phoneNumber: String? = null,
     val manifesto: String? = null,
-    val profilePhotoPath: String? = null
+    @SerializedName("profilePhotoPath")
+    val profilePhotoPath: String? = null,
+    @SerializedName("profilePhotoBase64")
+    val profilePhotoBase64: String? = null,
+    @SerializedName("profileImageBase64")
+    val profileImageBase64: String? = null,
+    @SerializedName("profileImage")
+    val profileImage: String? = null
 )
 
 data class UpdateUserRequest(
