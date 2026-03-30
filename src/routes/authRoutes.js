@@ -12,7 +12,7 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // Version endpoint (for deployment tracking)
 router.get('/version', (req, res) => {
   res.json({
-    version: '1.2.5',
+    version: '1.2.6',
     timestamp: new Date().toISOString(),
     hasVerificationCode: true
   });
@@ -67,7 +67,11 @@ function isValidEmail(email) {
 
 function getEmailFailureResponse(errorMessage) {
   const hint = emailProviderService.getConfigurationHint();
-  return hint ? { error: errorMessage, hint } : { error: errorMessage };
+  const providerError = emailProviderService.getLastSendError();
+  const response = { error: errorMessage };
+  if (hint) response.hint = hint;
+  if (providerError) response.providerError = providerError;
+  return response;
 }
 
 // Send registration verification code (email)

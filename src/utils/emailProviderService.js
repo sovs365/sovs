@@ -4,6 +4,7 @@ import mailgunEmailService from './mailgunEmailService.js';
 
 class EmailProviderService {
   constructor() {
+    this.lastSendError = null;
     this.providers = [
       {
         name: 'brevo',
@@ -53,6 +54,10 @@ class EmailProviderService {
     return 'No email provider configured. Set BREVO_API_KEY + BREVO_FROM_EMAIL or SMTP_SENDER_EMAIL + SMTP_APP_PASSWORD.';
   }
 
+  getLastSendError() {
+    return this.lastSendError;
+  }
+
   async sendVerificationCode(recipientEmail, code, type = 'registration') {
     const configuredProviders = this.providers.filter((provider) => {
       return Boolean(provider.service?.isConfigured) &&
@@ -60,6 +65,7 @@ class EmailProviderService {
     });
 
     if (configuredProviders.length === 0) {
+      this.lastSendError = this.getConfigurationHint();
       console.error('No configured email providers available.');
       console.error(`   ${this.getConfigurationHint()}`);
       return false;
@@ -69,16 +75,27 @@ class EmailProviderService {
       try {
         const sent = await provider.service.sendVerificationCode(recipientEmail, code, type);
         if (sent) {
+          this.lastSendError = null;
           console.log(`Email delivered via provider: ${provider.name}`);
           return true;
         }
 
+        const providerError = typeof provider.service?.getLastError === 'function'
+          ? provider.service.getLastError()
+          : null;
+        this.lastSendError = providerError
+          ? `${provider.name}: ${providerError}`
+          : `${provider.name}: provider returned false`;
         console.warn(`Provider ${provider.name} failed to send verification code.`);
       } catch (error) {
+        this.lastSendError = `${provider.name}: ${error.message}`;
         console.error(`Provider ${provider.name} error: ${error.message}`);
       }
     }
 
+    if (!this.lastSendError) {
+      this.lastSendError = 'All configured email providers failed to send verification code.';
+    }
     console.error('All configured email providers failed to send verification code.');
     return false;
   }
