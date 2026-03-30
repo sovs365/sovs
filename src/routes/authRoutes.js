@@ -15,7 +15,7 @@ const VERIFIED_REGISTRATION_EXPIRY_MS = 30 * 60 * 1000; // 30 minutes
 // Version endpoint (for deployment tracking)
 router.get('/version', (req, res) => {
   res.json({
-    version: '1.2.14',
+    version: '1.2.15',
     timestamp: new Date().toISOString(),
     hasVerificationCode: true
   });
@@ -411,10 +411,14 @@ router.post('/register', async (req, res) => {
       gender,
       disability,
       manifesto,
-      positionId
+      positionId,
+      profilePhotoPath
     } = req.body;
     const normalizedEmail = normalizeEmail(email);
     const normalizedRole = (role || 'voter').toLowerCase();
+    const normalizedProfilePhotoPath = typeof profilePhotoPath === 'string'
+      ? profilePhotoPath.trim()
+      : null;
     const requiresEmailVerification = normalizedRole !== 'admin';
 
     // Validation
@@ -424,6 +428,10 @@ router.post('/register', async (req, res) => {
 
     if (!isValidEmail(normalizedEmail)) {
       return res.status(400).json({ error: 'Invalid email format' });
+    }
+
+    if (normalizedProfilePhotoPath && normalizedProfilePhotoPath.length > 2_000_000) {
+      return res.status(400).json({ error: 'Profile photo is too large' });
     }
 
     if (requiresEmailVerification) {
@@ -475,12 +483,12 @@ router.post('/register', async (req, res) => {
       `INSERT INTO users (
         user_id, username, password_hash, full_name, email, phone_number, role,
         reg_no, faculty, course, subject_combination, level_of_study, year_of_study,
-        gender, disability, manifesto, is_verified, created_at, updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)`,
+        gender, disability, manifesto, profile_photo_path, is_verified, created_at, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)`,
       [
         userId, username, passwordHash, fullName, normalizedEmail, phoneNumber, normalizedRole,
         regNo, faculty, course, subjectCombination, levelOfStudy, normalizedYearOfStudy,
-        gender, disability, manifesto,
+        gender, disability, manifesto, normalizedProfilePhotoPath,
         normalizedRole === 'admin' ? true : shouldVerifyAutomatically,
         now, now
       ]
@@ -689,12 +697,21 @@ router.put('/me', authenticateToken, async (req, res) => {
       fullName,
       email,
       phoneNumber,
-      manifesto
+      manifesto,
+      profilePhotoPath
     } = req.body;
 
     const normalizedEmail = email ? normalizeEmail(email) : null;
     if (normalizedEmail && !isValidEmail(normalizedEmail)) {
       return res.status(400).json({ error: 'Invalid email format' });
+    }
+
+    const normalizedProfilePhotoPath = typeof profilePhotoPath === 'string'
+      ? profilePhotoPath.trim()
+      : null;
+
+    if (normalizedProfilePhotoPath && normalizedProfilePhotoPath.length > 2_000_000) {
+      return res.status(400).json({ error: 'Profile photo is too large' });
     }
 
     const result = await query(
@@ -703,14 +720,16 @@ router.put('/me', authenticateToken, async (req, res) => {
            email = COALESCE($2, email),
            phone_number = COALESCE($3, phone_number),
            manifesto = COALESCE($4, manifesto),
-           updated_at = $5
-       WHERE user_id = $6
+           profile_photo_path = COALESCE($5, profile_photo_path),
+           updated_at = $6
+       WHERE user_id = $7
        RETURNING *`,
       [
         fullName || null,
         normalizedEmail || null,
         phoneNumber || null,
         manifesto || null,
+        normalizedProfilePhotoPath || null,
         Date.now(),
         req.userId
       ]

@@ -118,7 +118,7 @@ export async function initializeDatabase() {
         manifesto TEXT,
         is_verified BOOLEAN DEFAULT FALSE,
         is_locked BOOLEAN DEFAULT FALSE,
-        profile_photo_path VARCHAR(255),
+        profile_photo_path TEXT,
         created_at BIGINT NOT NULL,
         updated_at BIGINT NOT NULL
       );
@@ -220,6 +220,9 @@ export async function initializeDatabase() {
         details TEXT,
         created_at BIGINT NOT NULL
       );
+
+      ALTER TABLE users
+      ALTER COLUMN profile_photo_path TYPE TEXT;
       
       CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
       CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);

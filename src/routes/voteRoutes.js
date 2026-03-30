@@ -2,7 +2,7 @@ import express from 'express';
 import crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { authenticateToken, requireRole, getUserById } from '../auth.js';
-import { query } from '../db.js';
+import { query, getClient } from '../db.js';
 
 const router = express.Router();
 
@@ -10,7 +10,7 @@ const router = express.Router();
 router.get('/candidates', async (req, res) => {
   try {
     const result = await query(`
-      SELECT c.*, u.full_name, u.reg_no, u.faculty, p.name as position_name
+      SELECT c.*, u.full_name, u.reg_no, u.faculty, u.course, u.profile_photo_path, p.name as position_name
       FROM candidates c
       LEFT JOIN users u ON c.user_id = u.user_id
       LEFT JOIN positions p ON c.position_id = p.position_id
@@ -29,7 +29,7 @@ router.get('/candidates', async (req, res) => {
 router.get('/candidates/position/:positionId', async (req, res) => {
   try {
     const result = await query(`
-      SELECT c.*, u.full_name, u.reg_no, u.faculty, p.name as position_name
+      SELECT c.*, u.full_name, u.reg_no, u.faculty, u.course, u.profile_photo_path, p.name as position_name
       FROM candidates c
       LEFT JOIN users u ON c.user_id = u.user_id
       LEFT JOIN positions p ON c.position_id = p.position_id
@@ -49,7 +49,7 @@ router.get('/candidates/position/:positionId', async (req, res) => {
 router.get('/candidates/:id', async (req, res) => {
   try {
     const result = await query(`
-      SELECT c.*, u.full_name, u.reg_no, u.faculty, p.name as position_name
+      SELECT c.*, u.full_name, u.reg_no, u.faculty, u.course, u.profile_photo_path, p.name as position_name
       FROM candidates c
       LEFT JOIN users u ON c.user_id = u.user_id
       LEFT JOIN positions p ON c.position_id = p.position_id
@@ -99,7 +99,7 @@ router.post('/candidates', authenticateToken, async (req, res) => {
     );
 
     const result = await query(`
-      SELECT c.*, u.full_name, u.reg_no, u.faculty, p.name as position_name
+      SELECT c.*, u.full_name, u.reg_no, u.faculty, u.course, u.profile_photo_path, p.name as position_name
       FROM candidates c
       LEFT JOIN users u ON c.user_id = u.user_id
       LEFT JOIN positions p ON c.position_id = p.position_id
@@ -123,7 +123,7 @@ async function verifyCandidateHandler(req, res) {
     );
 
     const result = await query(`
-      SELECT c.*, u.full_name, u.reg_no, u.faculty, p.name as position_name
+      SELECT c.*, u.full_name, u.reg_no, u.faculty, u.course, u.profile_photo_path, p.name as position_name
       FROM candidates c
       LEFT JOIN users u ON c.user_id = u.user_id
       LEFT JOIN positions p ON c.position_id = p.position_id
@@ -204,53 +204,106 @@ router.post('/votes', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'You have already voted in this election' });
     }
 
-    const voteReceipts = [];
+    const positionsResult = await query(
+      'SELECT DISTINCT position_id FROM elections WHERE election_id = $1',
+      [electionId]
+    );
 
-    // Record each vote
+    const requiredPositionIds = positionsResult.rows
+      .map((row) => row.position_id)
+      .filter(Boolean);
+
+    if (requiredPositionIds.length === 0) {
+      return res.status(400).json({ error: 'No positions are configured for this election' });
+    }
+
+    const requestedPositionIds = votes
+      .map((vote) => vote?.positionId)
+      .filter(Boolean);
+
+    if (new Set(requestedPositionIds).size !== requestedPositionIds.length) {
+      return res.status(400).json({ error: 'Duplicate position votes are not allowed' });
+    }
+
+    if (requestedPositionIds.length !== requiredPositionIds.length) {
+      return res.status(400).json({ error: 'You must vote for all positions in this election' });
+    }
+
+    const unexpectedPosition = requestedPositionIds.find((positionId) => !requiredPositionIds.includes(positionId));
+    if (unexpectedPosition) {
+      return res.status(400).json({ error: 'One or more selected positions are invalid for this election' });
+    }
+
+    const missingPosition = requiredPositionIds.find((positionId) => !requestedPositionIds.includes(positionId));
+    if (missingPosition) {
+      return res.status(400).json({ error: 'You must vote for all positions in this election' });
+    }
+
+    const candidateMeta = new Map();
     for (const vote of votes) {
-      const { positionId, candidateId } = vote;
-
-      // Check if already voted for this position
-      const positionVote = await query(
-        'SELECT vote_id FROM votes WHERE election_id = $1 AND voter_id = $2 AND position_id = $3',
-        [electionId, req.userId, positionId]
-      );
-
-      if (positionVote.rows.length > 0) {
-        continue; // Already voted for this position
+      const { positionId, candidateId } = vote || {};
+      if (!positionId || !candidateId) {
+        return res.status(400).json({ error: 'Each vote must include positionId and candidateId' });
       }
 
-      const voteId = uuidv4();
-      const voteHash = crypto
-        .createHash('sha256')
-        .update(`${voteId}${candidateId}${electionId}${Date.now()}`)
-        .digest('hex');
-
-      await query(
-        `INSERT INTO votes (vote_id, election_id, voter_id, position_id, candidate_id, vote_hash, created_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [voteId, electionId, req.userId, positionId, candidateId, voteHash, now]
+      const candidateExists = await query(
+        `SELECT c.candidate_id, u.full_name, p.name AS position_name
+         FROM candidates c
+         LEFT JOIN users u ON c.user_id = u.user_id
+         LEFT JOIN positions p ON c.position_id = p.position_id
+         WHERE c.candidate_id = $1 AND c.position_id = $2 AND c.is_verified = TRUE
+         LIMIT 1`,
+        [candidateId, positionId]
       );
 
-      // Get candidate and position names for receipt
-      const candidateQuery = await query(
-        'SELECT u.full_name FROM candidates c LEFT JOIN users u ON c.user_id = u.user_id WHERE c.candidate_id = $1',
-        [candidateId]
-      );
+      if (candidateExists.rows.length === 0) {
+        return res.status(400).json({ error: 'Invalid candidate selected for one or more positions' });
+      }
 
-      const positionQuery = await query(
-        'SELECT name FROM positions WHERE position_id = $1',
-        [positionId]
-      );
+      candidateMeta.set(candidateId, candidateExists.rows[0]);
+    }
 
-      voteReceipts.push({
-        voteId,
-        electionTitle: election.title,
-        positionName: positionQuery.rows[0]?.name,
-        candidateName: candidateQuery.rows[0]?.full_name,
-        timestamp: now,
-        hash: voteHash
-      });
+    const voteReceipts = [];
+    const client = await getClient();
+    try {
+      await client.query('BEGIN');
+
+      // Record each vote atomically
+      for (const vote of votes) {
+        const { positionId, candidateId } = vote;
+
+        const voteId = uuidv4();
+        const voteHash = crypto
+          .createHash('sha256')
+          .update(`${voteId}${candidateId}${electionId}${Date.now()}`)
+          .digest('hex');
+
+        await client.query(
+          `INSERT INTO votes (vote_id, election_id, voter_id, position_id, candidate_id, vote_hash, created_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [voteId, electionId, req.userId, positionId, candidateId, voteHash, now]
+        );
+
+        const meta = candidateMeta.get(candidateId);
+        voteReceipts.push({
+          voteId,
+          electionTitle: election.title,
+          positionName: meta?.position_name || null,
+          candidateName: meta?.full_name || null,
+          timestamp: now,
+          hash: voteHash
+        });
+      }
+
+      await client.query('COMMIT');
+    } catch (transactionError) {
+      await client.query('ROLLBACK');
+      if (transactionError?.code === '23505') {
+        return res.status(400).json({ error: 'You have already voted in this election' });
+      }
+      throw transactionError;
+    } finally {
+      client.release();
     }
 
     res.status(201).json({
@@ -397,6 +450,8 @@ function formatCandidateResponse(candidate) {
     fullName: candidate.full_name,
     regNo: candidate.reg_no,
     faculty: candidate.faculty,
+    course: candidate.course,
+    profilePhotoPath: candidate.profile_photo_path,
     isVerified: candidate.is_verified,
     positionName: candidate.position_name
   };
