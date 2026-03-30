@@ -153,8 +153,7 @@ class AdminDashboardActivity : BaseActivity() {
         return when {
             now > election.endDate -> "CLOSED"
             election.status.equals("open", ignoreCase = true) && now >= election.startDate -> "LIVE"
-            election.status.equals("open", ignoreCase = true) -> "OPEN"
-            else -> "DRAFT"
+            else -> "OPEN"
         }
     }
 
@@ -162,9 +161,8 @@ class AdminDashboardActivity : BaseActivity() {
         return when (status.uppercase(Locale.getDefault())) {
             "LIVE" -> 0
             "OPEN" -> 1
-            "DRAFT" -> 2
-            "CLOSED" -> 3
-            else -> 4
+            "CLOSED" -> 2
+            else -> 3
         }
     }
 }

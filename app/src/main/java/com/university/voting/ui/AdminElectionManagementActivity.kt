@@ -344,7 +344,11 @@ class AdminElectionManagementActivity : BaseActivity() {
         lifecycleScope.launch {
             repository.getAllElections().onSuccess { elections ->
                 allElections = elections
-                val labels = elections.map { "${it.title} (${it.status})" }
+                val now = System.currentTimeMillis()
+                val labels = elections.map { election ->
+                    val displayStatus = getDisplayStatus(election, now)
+                    "${election.title} ($displayStatus)"
+                }
                 listActiveElections.adapter = ArrayAdapter(
                     this@AdminElectionManagementActivity,
                     android.R.layout.simple_list_item_1,
@@ -356,6 +360,14 @@ class AdminElectionManagementActivity : BaseActivity() {
             }.onFailure { error ->
                 Toast.makeText(this@AdminElectionManagementActivity, "Failed to load elections: ${error.message}", Toast.LENGTH_SHORT).show()
             }
+        }
+    }
+
+    private fun getDisplayStatus(election: ElectionResponse, now: Long = System.currentTimeMillis()): String {
+        return when {
+            now > election.endDate -> "CLOSED"
+            election.status.equals("open", ignoreCase = true) && now >= election.startDate -> "LIVE"
+            else -> "OPEN"
         }
     }
 
