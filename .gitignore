@@ -1,0 +1,32 @@
+# OS / IDE
+.DS_Store
+.idea/
+.vscode/
+*.iml
+
+# Gradle / Android build artifacts
+.gradle/
+.gradle-home/
+.gradle-home-verify/
+.gradle-user/
+.kotlin/
+.android-home/
+build/
+**/build/
+captures/
+.externalNativeBuild/
+.cxx/
+local.properties
+
+# Logs
+*.log
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Node / JS artifacts
+node_modules/
+dist/
+coverage/
