@@ -6,6 +6,10 @@ import { query, getClient } from '../db.js';
 
 const router = express.Router();
 
+function normalizeElectionStatus(status) {
+  return String(status || '').trim().toLowerCase();
+}
+
 // Get all candidates
 router.get('/candidates', async (req, res) => {
   try {
@@ -185,8 +189,9 @@ router.post('/votes', authenticateToken, async (req, res) => {
 
     const election = electionResult.rows[0];
     const now = Date.now();
+    const electionStatus = normalizeElectionStatus(election.status);
 
-    if (election.status !== 'open') {
+    if (!['open', 'draft'].includes(electionStatus)) {
       return res.status(400).json({ error: 'Election is not open' });
     }
 

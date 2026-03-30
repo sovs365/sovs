@@ -5,11 +5,15 @@ import { query } from '../db.js';
 
 const router = express.Router();
 
+function normalizeElectionStatus(status) {
+  return String(status || '').trim().toLowerCase();
+}
+
 async function synchronizeExpiredElections(now = Date.now()) {
   await query(
     `UPDATE elections
      SET status = 'closed', updated_at = $1
-     WHERE end_date < $1 AND status <> 'closed'`,
+     WHERE end_date < $1 AND LOWER(COALESCE(status, '')) <> 'closed'`,
     [now]
   );
 }
@@ -19,7 +23,19 @@ function resolveElectionStatus(election, now = Date.now()) {
   if (endDate > 0 && now > endDate) {
     return 'closed';
   }
-  return election.status;
+
+  const normalizedStatus = normalizeElectionStatus(election.status);
+
+  // Treat draft as open for active/ongoing visibility in dashboards.
+  if (normalizedStatus === 'draft') {
+    return 'open';
+  }
+
+  if (normalizedStatus) {
+    return normalizedStatus;
+  }
+
+  return 'open';
 }
 
 // Get all positions
@@ -142,7 +158,7 @@ router.get('/elections/open', async (req, res) => {
       SELECT e.*, p.name as position_name
       FROM elections e
       LEFT JOIN positions p ON e.position_id = p.position_id
-      WHERE e.status = 'open' AND e.start_date <= $1 AND e.end_date >= $1
+      WHERE LOWER(COALESCE(e.status, '')) IN ('open', 'draft') AND e.start_date <= $1 AND e.end_date >= $1
       ORDER BY e.end_date ASC
     `, [now]);
 
