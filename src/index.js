@@ -27,8 +27,8 @@ app.use(cors({
   credentials: true
 }));
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '8mb' }));
+app.use(express.urlencoded({ extended: true, limit: '8mb' }));
 
 // Rate limiting
 const generalLimiter = rateLimit({
@@ -87,6 +87,10 @@ app.use('/api', adminRoutes);
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error('Error:', err);
+
+  if (err?.type === 'entity.too.large') {
+    return res.status(413).json({ error: 'Profile photo is too large. Please choose a smaller image.' });
+  }
   
   if (err.name === 'UnauthorizedError') {
     return res.status(401).json({ error: 'Unauthorized' });

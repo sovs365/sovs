@@ -11,11 +11,12 @@ const router = express.Router();
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const CODE_EXPIRY_MS = 10 * 60 * 1000; // 10 minutes
 const VERIFIED_REGISTRATION_EXPIRY_MS = 30 * 60 * 1000; // 30 minutes
+const MAX_PROFILE_PHOTO_LENGTH = 6_000_000;
 
 // Version endpoint (for deployment tracking)
 router.get('/version', (req, res) => {
   res.json({
-    version: '1.2.15',
+    version: '1.2.16',
     timestamp: new Date().toISOString(),
     hasVerificationCode: true
   });
@@ -70,6 +71,30 @@ function normalizeCode(code) {
 
 function isValidEmail(email) {
   return EMAIL_PATTERN.test(normalizeEmail(email));
+}
+
+function normalizeOptionalText(value) {
+  return typeof value === 'string' ? value.trim() : null;
+}
+
+function extractProfilePhotoPath(payload = {}) {
+  const candidates = [
+    payload?.profilePhotoPath,
+    payload?.profilePhotoBase64,
+    payload?.profileImageBase64,
+    payload?.profileImage,
+    payload?.profilePhotoUrl,
+    payload?.imageUrl
+  ];
+
+  for (const value of candidates) {
+    const normalized = normalizeOptionalText(value);
+    if (normalized) {
+      return normalized;
+    }
+  }
+
+  return null;
 }
 
 function getRegistrationCodeWindow(nowMs = Date.now()) {
@@ -411,14 +436,11 @@ router.post('/register', async (req, res) => {
       gender,
       disability,
       manifesto,
-      positionId,
-      profilePhotoPath
+      positionId
     } = req.body;
     const normalizedEmail = normalizeEmail(email);
     const normalizedRole = (role || 'voter').toLowerCase();
-    const normalizedProfilePhotoPath = typeof profilePhotoPath === 'string'
-      ? profilePhotoPath.trim()
-      : null;
+    const normalizedProfilePhotoPath = extractProfilePhotoPath(req.body);
     const requiresEmailVerification = normalizedRole !== 'admin';
 
     // Validation
@@ -430,7 +452,7 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Invalid email format' });
     }
 
-    if (normalizedProfilePhotoPath && normalizedProfilePhotoPath.length > 2_000_000) {
+    if (normalizedProfilePhotoPath && normalizedProfilePhotoPath.length > MAX_PROFILE_PHOTO_LENGTH) {
       return res.status(400).json({ error: 'Profile photo is too large' });
     }
 
@@ -697,8 +719,7 @@ router.put('/me', authenticateToken, async (req, res) => {
       fullName,
       email,
       phoneNumber,
-      manifesto,
-      profilePhotoPath
+      manifesto
     } = req.body;
 
     const normalizedEmail = email ? normalizeEmail(email) : null;
@@ -706,11 +727,9 @@ router.put('/me', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Invalid email format' });
     }
 
-    const normalizedProfilePhotoPath = typeof profilePhotoPath === 'string'
-      ? profilePhotoPath.trim()
-      : null;
+    const normalizedProfilePhotoPath = extractProfilePhotoPath(req.body);
 
-    if (normalizedProfilePhotoPath && normalizedProfilePhotoPath.length > 2_000_000) {
+    if (normalizedProfilePhotoPath && normalizedProfilePhotoPath.length > MAX_PROFILE_PHOTO_LENGTH) {
       return res.status(400).json({ error: 'Profile photo is too large' });
     }
 
