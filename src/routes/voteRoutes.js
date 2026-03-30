@@ -33,7 +33,19 @@ router.get('/candidates', async (req, res) => {
 router.get('/candidates/position/:positionId', async (req, res) => {
   try {
     const result = await query(`
-      SELECT c.*, u.full_name, u.reg_no, u.faculty, u.course, u.profile_photo_path, p.name as position_name
+      SELECT
+        c.candidate_id,
+        c.position_id,
+        c.user_id,
+        c.manifesto,
+        TRUE AS is_verified,
+        c.created_at,
+        u.full_name,
+        u.reg_no,
+        u.faculty,
+        u.course,
+        u.profile_photo_path,
+        p.name as position_name
       FROM candidates c
       LEFT JOIN users u ON c.user_id = u.user_id
       LEFT JOIN positions p ON c.position_id = p.position_id
@@ -256,7 +268,7 @@ router.post('/votes', authenticateToken, async (req, res) => {
          FROM candidates c
          LEFT JOIN users u ON c.user_id = u.user_id
          LEFT JOIN positions p ON c.position_id = p.position_id
-         WHERE c.candidate_id = $1 AND c.position_id = $2 AND c.is_verified = TRUE
+         WHERE c.candidate_id = $1 AND c.position_id = $2
          LIMIT 1`,
         [candidateId, positionId]
       );
