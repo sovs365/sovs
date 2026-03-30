@@ -223,12 +223,15 @@ export async function initializeDatabase() {
       
       CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
       CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+      CREATE INDEX IF NOT EXISTS idx_users_lower_email ON users(LOWER(email));
       CREATE INDEX IF NOT EXISTS idx_votes_election_voter ON votes(election_id, voter_id);
       CREATE INDEX IF NOT EXISTS idx_candidates_position ON candidates(position_id);
       CREATE INDEX IF NOT EXISTS idx_elections_position ON elections(position_id);
       CREATE INDEX IF NOT EXISTS idx_verification_codes_email_type ON verification_codes(email, type);
+      CREATE INDEX IF NOT EXISTS idx_verification_codes_lower_email_type ON verification_codes(LOWER(email), type);
       CREATE INDEX IF NOT EXISTS idx_verification_codes_expires_at ON verification_codes(expires_at);
       CREATE INDEX IF NOT EXISTS idx_verified_registrations_email ON verified_registrations(email);
+      CREATE INDEX IF NOT EXISTS idx_verified_registrations_lower_email ON verified_registrations(LOWER(email));
     `);
     console.log('✅ Database tables initialized');
     return true;

@@ -15,7 +15,7 @@ const VERIFIED_REGISTRATION_EXPIRY_MS = 30 * 60 * 1000; // 30 minutes
 // Version endpoint (for deployment tracking)
 router.get('/version', (req, res) => {
   res.json({
-    version: '1.2.13',
+    version: '1.2.14',
     timestamp: new Date().toISOString(),
     hasVerificationCode: true
   });
@@ -316,17 +316,11 @@ router.post('/send-registration-code', async (req, res) => {
     // Deterministic registration code avoids false mismatches across retries/restarts.
     const code = generateDeterministicRegistrationCode(normalizedEmail);
 
-    // Store code in memory manager
-    const codeStored = verificationCodeManager.storeCode(normalizedEmail, code, 'registration');
-    if (!codeStored) {
-      return res.status(500).json({ error: 'Could not prepare verification code' });
-    }
-
-    const codePersisted = await persistVerificationCode(normalizedEmail, code, 'registration');
-    if (!codePersisted) {
-      verificationCodeManager.deleteCode(normalizedEmail, 'registration');
-      return res.status(500).json({ error: 'Could not persist verification code' });
-    }
+    // Keep memory storage as a best-effort fast path.
+    verificationCodeManager.storeCode(normalizedEmail, code, 'registration');
+    // Persist asynchronously for compatibility; verification is deterministic-first.
+    persistVerificationCode(normalizedEmail, code, 'registration')
+      .catch((err) => console.warn('Registration code persistence warning:', err?.message || err));
 
     const sent = await emailProviderService.sendVerificationCode(normalizedEmail, code, 'registration');
     if (!sent) {
@@ -361,17 +355,16 @@ router.post('/verify-registration-code', async (req, res) => {
       return res.status(400).json({ error: 'Email and code are required' });
     }
 
-    // Verify from memory first, then DB fallback, then deterministic fallback.
-    // This avoids false negatives when process memory is recycled or DB writes lag.
-    let isValid = verificationCodeManager.verifyCode(normalizedEmail, normalizedCode, 'registration');
-    let verificationSource = 'memory';
+    // Deterministic-first keeps this path fast and consistent across devices/instances.
+    let isValid = verifyDeterministicRegistrationCode(normalizedEmail, normalizedCode);
+    let verificationSource = isValid ? 'deterministic' : 'none';
+    if (!isValid) {
+      isValid = verificationCodeManager.verifyCode(normalizedEmail, normalizedCode, 'registration');
+      verificationSource = isValid ? 'memory' : 'none';
+    }
     if (!isValid) {
       isValid = await verifyCodeFromDb(normalizedEmail, normalizedCode, 'registration');
       verificationSource = isValid ? 'db' : 'none';
-    }
-    if (!isValid) {
-      isValid = verifyDeterministicRegistrationCode(normalizedEmail, normalizedCode);
-      verificationSource = isValid ? 'deterministic' : 'none';
     }
 
     if (!isValid) {
@@ -380,9 +373,12 @@ router.post('/verify-registration-code', async (req, res) => {
 
     // Code is valid - delete it so it can't be reused
     verificationCodeManager.deleteCode(normalizedEmail, 'registration');
-    await deleteVerificationCodeFromDb(normalizedEmail, 'registration');
     verificationCodeManager.markRegistrationVerified(normalizedEmail);
-    await markRegistrationVerifiedPersistent(normalizedEmail);
+    const persisted = await markRegistrationVerifiedPersistent(normalizedEmail);
+    if (!persisted) {
+      return res.status(503).json({ error: 'Verification temporarily unavailable. Please try again.' });
+    }
+    deleteVerificationCodeFromDb(normalizedEmail, 'registration');
     console.log(`✅ Registration code verified for ${normalizedEmail} via ${verificationSource}`);
 
     res.json({ 
@@ -432,7 +428,7 @@ router.post('/register', async (req, res) => {
 
     if (requiresEmailVerification) {
       const verifiedInMemory = verificationCodeManager.isRegistrationVerified(normalizedEmail);
-      const verifiedInDb = await isRegistrationVerifiedPersistent(normalizedEmail);
+      const verifiedInDb = verifiedInMemory ? false : await isRegistrationVerifiedPersistent(normalizedEmail);
       if (!verifiedInMemory && !verifiedInDb) {
         return res.status(403).json({ error: 'Email verification required before registration' });
       }
@@ -642,13 +638,14 @@ router.post('/verify-login-code', async (req, res) => {
 
     // Code is valid - delete it so it can't be reused
     verificationCodeManager.deleteCode(normalizedEmail, 'login');
-    await deleteVerificationCodeFromDb(normalizedEmail, 'login');
+    const deleteCodePromise = deleteVerificationCodeFromDb(normalizedEmail, 'login');
 
     // Get user info
     const userResult = await query(
       'SELECT * FROM users WHERE LOWER(email) = $1',
       [normalizedEmail]
     );
+    await deleteCodePromise;
 
     if (userResult.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
