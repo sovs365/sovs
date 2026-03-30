@@ -12,7 +12,7 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // Version endpoint (for deployment tracking)
 router.get('/version', (req, res) => {
   res.json({
-    version: '1.2.8',
+    version: '1.2.9',
     timestamp: new Date().toISOString(),
     hasVerificationCode: true
   });
@@ -227,8 +227,13 @@ router.post('/register', async (req, res) => {
       : null;
 
     // Auto-verify voters with complete info, always verify admins
-    const shouldVerifyAutomatically = (normalizedRole === 'voter' || normalizedRole === 'admin') &&
-      regNo && faculty && course && phoneNumber;
+    const shouldVerifyAutomatically = Boolean(
+      (normalizedRole === 'voter' || normalizedRole === 'admin') &&
+      regNo &&
+      faculty &&
+      course &&
+      phoneNumber
+    );
 
     // Create user
     await query(
