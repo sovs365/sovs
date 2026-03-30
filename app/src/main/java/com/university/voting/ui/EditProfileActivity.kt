@@ -2,14 +2,17 @@ package com.university.voting.ui
 
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.view.View
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.lifecycle.lifecycleScope
 import com.university.voting.R
 import com.university.voting.api.UserResponse
 import com.university.voting.databinding.ActivityEditProfileBinding
 import com.university.voting.repository.VotingRepository
+import com.university.voting.util.ProfileImageLoader
 import kotlinx.coroutines.launch
 
 class EditProfileActivity : BaseActivity() {
@@ -17,6 +20,20 @@ class EditProfileActivity : BaseActivity() {
     private val repository = VotingRepository()
     private var token: String = ""
     private var currentUser: UserResponse? = null
+    private var selectedPhotoPath: String? = null
+
+    private val photoPickerLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        if (uri == null) return@registerForActivityResult
+
+        val encoded = ProfileImageLoader.toDataUri(this, uri)
+        if (encoded.isNullOrBlank()) {
+            Toast.makeText(this, "Unable to process selected photo", Toast.LENGTH_SHORT).show()
+            return@registerForActivityResult
+        }
+
+        selectedPhotoPath = encoded
+        ProfileImageLoader.loadInto(binding.ivProfilePhoto, selectedPhotoPath, R.drawable.ic_person)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -36,11 +53,7 @@ class EditProfileActivity : BaseActivity() {
         loadUserData()
 
         binding.btnChangePhoto.setOnClickListener {
-            Toast.makeText(
-                this,
-                "Profile photo upload is not configured on backend yet.",
-                Toast.LENGTH_SHORT
-            ).show()
+            photoPickerLauncher.launch("image/*")
         }
 
         binding.btnSave.setOnClickListener {
@@ -60,7 +73,8 @@ class EditProfileActivity : BaseActivity() {
                 binding.etFullName.setText(user.fullName)
                 binding.etEmail.setText(user.email ?: "")
                 binding.etPhone.setText(user.phoneNumber)
-                binding.ivProfilePhoto.setImageResource(R.drawable.ic_person)
+                selectedPhotoPath = user.profilePhotoPath
+                ProfileImageLoader.loadInto(binding.ivProfilePhoto, selectedPhotoPath, R.drawable.ic_person)
 
                 if (user.role == "candidate") {
                     binding.candidateFields.visibility = View.VISIBLE
@@ -94,7 +108,8 @@ class EditProfileActivity : BaseActivity() {
                 fullName = fullName,
                 email = email.ifBlank { null },
                 phoneNumber = phone.ifBlank { null },
-                manifesto = if (role == "candidate") manifesto.ifBlank { null } else null
+                manifesto = if (role == "candidate") manifesto.ifBlank { null } else null,
+                profilePhotoPath = selectedPhotoPath
             ).onSuccess {
                 Toast.makeText(this@EditProfileActivity, "Profile updated successfully", Toast.LENGTH_SHORT).show()
                 finish()

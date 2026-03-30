@@ -15,6 +15,7 @@ import com.university.voting.api.PositionResponse
 import com.university.voting.api.PositionVote
 import com.university.voting.databinding.ActivityVotingBinding
 import com.university.voting.repository.VotingRepository
+import com.university.voting.util.ProfileImageLoader
 import kotlinx.coroutines.launch
 
 class VotingActivity : BaseActivity() {
@@ -80,7 +81,7 @@ class VotingActivity : BaseActivity() {
                         val tvCourse = candView.findViewById<TextView>(R.id.tvCandidateCourse)
                         val cbSelect = candView.findViewById<CheckBox>(R.id.cbSelectCandidate)
 
-                        ivPhoto.setImageResource(R.drawable.ic_person)
+                        ProfileImageLoader.loadInto(ivPhoto, candidate.profilePhotoPath, R.drawable.ic_person)
                         tvName.text = candidate.fullName
                         tvFaculty.text = candidate.faculty ?: ""
                         tvCourse.text = candidate.course ?: ""

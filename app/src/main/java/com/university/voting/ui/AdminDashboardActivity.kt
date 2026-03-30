@@ -12,6 +12,7 @@ import android.widget.Toast
 import androidx.lifecycle.lifecycleScope
 import com.university.voting.R
 import com.university.voting.repository.VotingRepository
+import com.university.voting.util.ProfileImageLoader
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -104,8 +105,8 @@ class AdminDashboardActivity : BaseActivity() {
             try {
                 repository.getCurrentUser(token).onSuccess { user ->
                     tvWelcome.text = "Welcome back, ${user.fullName}"
-                    ivProfileHeader.setImageResource(R.drawable.ic_sov_logo)
-                    ivHeaderPhoto.setImageDrawable(null)
+                    ProfileImageLoader.loadInto(ivProfileHeader, user.profilePhotoPath, R.drawable.ic_sov_logo)
+                    ProfileImageLoader.loadInto(ivHeaderPhoto, user.profilePhotoPath, R.drawable.ic_sov_logo)
                 }.onFailure {
                     tvWelcome.text = "Welcome back, Admin"
                     ivProfileHeader.setImageResource(R.drawable.ic_sov_logo)

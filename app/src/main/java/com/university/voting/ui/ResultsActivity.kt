@@ -1,5 +1,7 @@
 package com.university.voting.ui
 
+import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import android.widget.AdapterView
@@ -20,13 +22,23 @@ class ResultsActivity : BaseActivity() {
     private lateinit var binding: ActivityResultsBinding
     private val repository = VotingRepository()
     private var elections: List<ElectionResponse> = emptyList()
+    private var token: String = ""
+    private var userRole: String = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityResultsBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        loadElections()
+        val sharedPref = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+        token = sharedPref.getString("token", "") ?: ""
+        userRole = (sharedPref.getString("user_role", "") ?: "").lowercase(Locale.getDefault())
+
+        if (token.isBlank()) {
+            startActivity(Intent(this, LoginActivity::class.java))
+            finish()
+            return
+        }
 
         binding.spinnerElections.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
@@ -37,6 +49,40 @@ class ResultsActivity : BaseActivity() {
 
             override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
+
+        lifecycleScope.launch {
+            val canAccess = canAccessLiveResultsForCurrentUser()
+            if (!canAccess) {
+                Toast.makeText(
+                    this@ResultsActivity,
+                    "Vote in all open elections before viewing live analysis.",
+                    Toast.LENGTH_LONG
+                ).show()
+                finish()
+                return@launch
+            }
+            loadElections()
+        }
+    }
+
+    private suspend fun canAccessLiveResultsForCurrentUser(): Boolean {
+        if (userRole == "admin") {
+            return true
+        }
+
+        val openElections = repository.getOpenElections().getOrDefault(emptyList())
+        if (openElections.isEmpty()) {
+            return false
+        }
+
+        var votedCount = 0
+        for (election in openElections) {
+            repository.checkVoted(token, election.electionId).onSuccess { hasVoted ->
+                if (hasVoted) votedCount += 1
+            }
+        }
+
+        return votedCount == openElections.size
     }
 
     private fun loadElections() {

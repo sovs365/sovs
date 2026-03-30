@@ -55,7 +55,8 @@ class VotingRepository {
         fullName: String?,
         email: String?,
         phoneNumber: String?,
-        manifesto: String?
+        manifesto: String?,
+        profilePhotoPath: String?
     ): Result<UserResponse> = withContext(Dispatchers.IO) {
         try {
             val response = api.updateCurrentUser(
@@ -64,7 +65,8 @@ class VotingRepository {
                     fullName = fullName,
                     email = email,
                     phoneNumber = phoneNumber,
-                    manifesto = manifesto
+                    manifesto = manifesto,
+                    profilePhotoPath = profilePhotoPath
                 )
             )
             if (response.isSuccessful && response.body() != null) {

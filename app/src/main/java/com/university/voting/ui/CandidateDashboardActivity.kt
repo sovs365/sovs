@@ -13,16 +13,11 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.lifecycle.lifecycleScope
 import com.university.voting.R
-import com.university.voting.api.CourseResponse
 import com.university.voting.api.ElectionResponse
-import com.university.voting.api.FacultyResponse
-import com.university.voting.api.PositionResponse
-import com.university.voting.api.SubjectCombinationResponse
-import com.university.voting.api.UserResponse
 import com.university.voting.repository.VotingRepository
+import com.university.voting.util.ProfileImageLoader
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
-import java.util.Locale
 
 class CandidateDashboardActivity : BaseActivity() {
     private val repository = VotingRepository()
@@ -37,6 +32,9 @@ class CandidateDashboardActivity : BaseActivity() {
     private lateinit var progressBar: ProgressBar
     private lateinit var ivProfileHeader: ImageView
     private lateinit var ivProfileImage: ImageView
+    private lateinit var ivHeaderPhoto: ImageView
+    private lateinit var btnViewResults: Button
+    private lateinit var btnVote: Button
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -60,9 +58,10 @@ class CandidateDashboardActivity : BaseActivity() {
         progressBar = findViewById(R.id.progressBar)
         ivProfileHeader = findViewById(R.id.ivProfileHeader)
         ivProfileImage = findViewById(R.id.ivProfileImage)
+        ivHeaderPhoto = findViewById(R.id.ivHeaderPhoto)
 
-        val btnViewResults = findViewById<Button>(R.id.btnViewResults)
-        val btnVote = findViewById<Button>(R.id.btnVote)
+        btnViewResults = findViewById(R.id.btnViewResults)
+        btnVote = findViewById(R.id.btnVote)
         val btnLogout = findViewById<Button>(R.id.btnLogout)
         val btnHome = findViewById<ImageView>(R.id.btnHome)
         val btnProfile = findViewById<ImageView>(R.id.btnProfile)
@@ -117,9 +116,6 @@ class CandidateDashboardActivity : BaseActivity() {
             try {
                 val userDeferred = async { repository.getCurrentUser(token) }
                 val positionsDeferred = async { repository.getAllPositions() }
-                val facultiesDeferred = async { repository.getFaculties() }
-                val coursesDeferred = async { repository.getCourses() }
-                val subjectsDeferred = async { repository.getSubjectCombinations() }
                 val electionsDeferred = async { repository.getOpenElections() }
                 val candidatesDeferred = async { repository.getAllCandidates() }
 
@@ -128,17 +124,15 @@ class CandidateDashboardActivity : BaseActivity() {
                 }
 
                 val positions = positionsDeferred.await().getOrDefault(emptyList())
-                val faculties = facultiesDeferred.await().getOrDefault(emptyList())
-                val courses = coursesDeferred.await().getOrDefault(emptyList())
-                val subjects = subjectsDeferred.await().getOrDefault(emptyList())
                 val openElections = electionsDeferred.await().getOrDefault(emptyList())
                 val candidates = candidatesDeferred.await().getOrDefault(emptyList())
 
                 tvWelcome.text = "Welcome back, ${user.fullName}"
                 tvVerificationStatus.text = "Verification: ${if (user.isVerified) "Verified" else "Pending"}"
                 tvManifesto.text = user.manifesto ?: "No manifesto provided"
-                ivProfileHeader.setImageResource(R.drawable.ic_sov_logo)
-                ivProfileImage.setImageResource(R.drawable.ic_person)
+                ProfileImageLoader.loadInto(ivProfileHeader, user.profilePhotoPath, R.drawable.ic_sov_logo)
+                ProfileImageLoader.loadInto(ivProfileImage, user.profilePhotoPath, R.drawable.ic_person)
+                ProfileImageLoader.loadInto(ivHeaderPhoto, user.profilePhotoPath, R.drawable.ic_sov_logo)
 
                 val myCandidate = candidates.firstOrNull { it.userId == user.userId }
                 val myPositionName = myCandidate?.positionName
@@ -146,20 +140,27 @@ class CandidateDashboardActivity : BaseActivity() {
                     ?: "Unknown"
                 tvPositionRunning.text = "Running for: $myPositionName"
 
-                val positionMap = positions.associateBy { it.positionId }
-                val facultyMap = faculties.associateBy { it.facultyId }
-                val courseMap = courses.associateBy { it.courseId }
-                val subjectMap = subjects.associateBy { it.id }
+                availableElections = openElections
 
-                availableElections = openElections.filter { election ->
-                    isElectionEligible(
-                        user = user,
-                        position = positionMap[election.positionId],
-                        faculties = facultyMap,
-                        courses = courseMap,
-                        subjects = subjectMap
-                    )
+                val votedElectionIds = mutableSetOf<String>()
+                for (election in availableElections) {
+                    repository.checkVoted(token, election.electionId).onSuccess { hasVoted ->
+                        if (hasVoted) votedElectionIds.add(election.electionId)
+                    }
                 }
+
+                val canViewLiveResults = availableElections.isNotEmpty() &&
+                    votedElectionIds.size == availableElections.size
+                btnViewResults.isEnabled = canViewLiveResults
+                btnViewResults.alpha = if (canViewLiveResults) 1f else 0.55f
+                btnViewResults.text = if (canViewLiveResults) {
+                    "📊  View Live Results"
+                } else {
+                    "📊  Vote In All Elections To View Results"
+                }
+
+                btnVote.isEnabled = availableElections.isNotEmpty()
+                btnVote.alpha = if (availableElections.isNotEmpty()) 1f else 0.55f
 
                 val items = availableElections.map { "${it.title} (${it.status})" }
                 lvElections.adapter = ArrayAdapter(
@@ -179,49 +180,6 @@ class CandidateDashboardActivity : BaseActivity() {
             } finally {
                 progressBar.visibility = View.GONE
             }
-        }
-    }
-
-    private fun isElectionEligible(
-        user: UserResponse,
-        position: PositionResponse?,
-        faculties: Map<String, FacultyResponse>,
-        courses: Map<String, CourseResponse>,
-        subjects: Map<String, SubjectCombinationResponse>
-    ): Boolean {
-        if (position == null) return false
-
-        val userYear = user.yearOfStudy
-        val positionYear = yearLabelToInt(position.yearOfStudy)
-        val yearMatches = positionYear == null || userYear == null || positionYear == userYear
-        if (!yearMatches) return false
-
-        return when (position.type.lowercase(Locale.getDefault())) {
-            "general" -> true
-            "faculty" -> {
-                val facultyName = position.facultyId?.let { faculties[it]?.name }
-                facultyName.isNullOrBlank() || facultyName.equals(user.faculty, ignoreCase = true)
-            }
-            "course" -> {
-                val courseName = position.courseId?.let { courses[it]?.name }
-                courseName.isNullOrBlank() || courseName.equals(user.course, ignoreCase = true)
-            }
-            "subject_combination" -> {
-                val subjectName = position.subjectCombinationId?.let { subjects[it]?.name }
-                subjectName.isNullOrBlank() || subjectName.equals(user.subjectCombination, ignoreCase = true)
-            }
-            else -> true
-        }
-    }
-
-    private fun yearLabelToInt(label: String?): Int? {
-        val value = label?.trim()?.lowercase(Locale.getDefault()) ?: return null
-        return when {
-            value.contains("first") -> 1
-            value.contains("second") -> 2
-            value.contains("third") -> 3
-            value.contains("fourth") -> 4
-            else -> value.filter { it.isDigit() }.toIntOrNull()
         }
     }
 }

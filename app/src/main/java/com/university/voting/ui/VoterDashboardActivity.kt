@@ -13,14 +13,10 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.university.voting.R
-import com.university.voting.api.CourseResponse
 import com.university.voting.api.ElectionResponse
-import com.university.voting.api.FacultyResponse
-import com.university.voting.api.PositionResponse
-import com.university.voting.api.SubjectCombinationResponse
-import com.university.voting.api.UserResponse
 import com.university.voting.databinding.ActivityVoterDashboardBinding
 import com.university.voting.repository.VotingRepository
+import com.university.voting.util.ProfileImageLoader
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -86,38 +82,17 @@ class VoterDashboardActivity : BaseActivity() {
             binding.progressBar.visibility = View.VISIBLE
             try {
                 val userDeferred = async { repository.getCurrentUser(token) }
-                val positionsDeferred = async { repository.getAllPositions() }
-                val facultiesDeferred = async { repository.getFaculties() }
-                val coursesDeferred = async { repository.getCourses() }
-                val subjectsDeferred = async { repository.getSubjectCombinations() }
                 val electionsDeferred = async { repository.getOpenElections() }
 
                 val user = userDeferred.await().getOrElse {
                     throw IllegalStateException("Failed to load current user")
                 }
-                val positions = positionsDeferred.await().getOrDefault(emptyList())
-                val faculties = facultiesDeferred.await().getOrDefault(emptyList())
-                val courses = coursesDeferred.await().getOrDefault(emptyList())
-                val subjects = subjectsDeferred.await().getOrDefault(emptyList())
                 val openElections = electionsDeferred.await().getOrDefault(emptyList())
 
                 binding.tvWelcome.text = "Welcome back, ${user.fullName}"
-                binding.ivProfileHeader.setImageResource(R.drawable.ic_sov_logo)
+                ProfileImageLoader.loadInto(binding.ivProfileHeader, user.profilePhotoPath, R.drawable.ic_sov_logo)
 
-                val positionMap = positions.associateBy { it.positionId }
-                val facultyMap = faculties.associateBy { it.facultyId }
-                val courseMap = courses.associateBy { it.courseId }
-                val subjectMap = subjects.associateBy { it.id }
-
-                val filteredElections = openElections.filter { election ->
-                    isElectionEligible(
-                        user = user,
-                        position = positionMap[election.positionId],
-                        faculties = facultyMap,
-                        courses = courseMap,
-                        subjects = subjectMap
-                    )
-                }
+                val filteredElections = openElections
 
                 val votedElectionIds = mutableSetOf<String>()
                 for (election in filteredElections) {
@@ -128,13 +103,14 @@ class VoterDashboardActivity : BaseActivity() {
 
                 binding.noticeCard.visibility = View.VISIBLE
                 binding.tvElectionNotice.text = if (filteredElections.isNotEmpty()) {
-                    "Notice: ${filteredElections.size} election(s) are open for you!"
+                    "Notice: ${filteredElections.size} election(s) are open. Vote all to unlock live analysis."
                 } else {
                     "No open elections at this time."
                 }
 
-                binding.btnViewLiveAnalysis.visibility =
-                    if (votedElectionIds.isNotEmpty()) View.VISIBLE else View.GONE
+                val canViewLiveAnalysis = filteredElections.isNotEmpty() &&
+                    votedElectionIds.size == filteredElections.size
+                binding.btnViewLiveAnalysis.visibility = if (canViewLiveAnalysis) View.VISIBLE else View.GONE
 
                 val adapter = ElectionAdapter(filteredElections, votedElectionIds) { election ->
                     val intent = Intent(this@VoterDashboardActivity, VotingActivity::class.java)
@@ -147,49 +123,6 @@ class VoterDashboardActivity : BaseActivity() {
             } finally {
                 binding.progressBar.visibility = View.GONE
             }
-        }
-    }
-
-    private fun isElectionEligible(
-        user: UserResponse,
-        position: PositionResponse?,
-        faculties: Map<String, FacultyResponse>,
-        courses: Map<String, CourseResponse>,
-        subjects: Map<String, SubjectCombinationResponse>
-    ): Boolean {
-        if (position == null) return false
-
-        val userYear = user.yearOfStudy
-        val positionYear = yearLabelToInt(position.yearOfStudy)
-        val yearMatches = positionYear == null || userYear == null || positionYear == userYear
-        if (!yearMatches) return false
-
-        return when (position.type.lowercase(Locale.getDefault())) {
-            "general" -> true
-            "faculty" -> {
-                val facultyName = position.facultyId?.let { faculties[it]?.name }
-                facultyName.isNullOrBlank() || facultyName.equals(user.faculty, ignoreCase = true)
-            }
-            "course" -> {
-                val courseName = position.courseId?.let { courses[it]?.name }
-                courseName.isNullOrBlank() || courseName.equals(user.course, ignoreCase = true)
-            }
-            "subject_combination" -> {
-                val subjectName = position.subjectCombinationId?.let { subjects[it]?.name }
-                subjectName.isNullOrBlank() || subjectName.equals(user.subjectCombination, ignoreCase = true)
-            }
-            else -> true
-        }
-    }
-
-    private fun yearLabelToInt(label: String?): Int? {
-        val value = label?.trim()?.lowercase(Locale.getDefault()) ?: return null
-        return when {
-            value.contains("first") -> 1
-            value.contains("second") -> 2
-            value.contains("third") -> 3
-            value.contains("fourth") -> 4
-            else -> value.filter { it.isDigit() }.toIntOrNull()
         }
     }
 

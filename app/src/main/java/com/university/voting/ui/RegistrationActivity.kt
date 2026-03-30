@@ -16,6 +16,7 @@ import com.university.voting.api.FacultyResponse
 import com.university.voting.api.PositionResponse
 import com.university.voting.databinding.ActivityRegistrationBinding
 import com.university.voting.repository.VotingRepository
+import com.university.voting.util.ProfileImageLoader
 import com.university.voting.viewmodel.AdminViewModel
 import kotlinx.coroutines.launch
 import java.util.Locale
@@ -295,6 +296,7 @@ class RegistrationActivity : BaseActivity() {
 
         var positionId: String? = null
         var manifesto: String? = null
+        var profilePhotoPath: String? = null
 
         if (role == "candidate") {
             manifesto = binding.etManifesto.text.toString().trim()
@@ -307,6 +309,12 @@ class RegistrationActivity : BaseActivity() {
 
             if (manifesto.isEmpty() || cvUri == null || declarationUri == null || schoolIdUri == null || academicClearanceUri == null || codeOfConductUri == null || passportUri == null) {
                 Toast.makeText(this, "Candidates must upload all required documents and manifesto", Toast.LENGTH_SHORT).show()
+                return
+            }
+
+            profilePhotoPath = ProfileImageLoader.toDataUri(this, passportUri!!)
+            if (profilePhotoPath.isNullOrBlank()) {
+                Toast.makeText(this, "Unable to process passport image. Please re-select it.", Toast.LENGTH_SHORT).show()
                 return
             }
 
@@ -343,6 +351,7 @@ class RegistrationActivity : BaseActivity() {
                     if (role == "candidate") {
                         intent.putExtra("positionId", positionId)
                         intent.putExtra("manifesto", manifesto)
+                        intent.putExtra("profilePhotoPath", profilePhotoPath)
                     }
 
                     binding.progressBar.visibility = View.GONE

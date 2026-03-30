@@ -133,6 +133,7 @@ class RegisterVerifyCodeActivity : BaseActivity() {
         val disability = intent.getStringExtra("disability")?.trim()
         val positionId = intent.getStringExtra("positionId")?.trim()
         val manifesto = intent.getStringExtra("manifesto")?.trim()
+        val profilePhotoPath = intent.getStringExtra("profilePhotoPath")?.trim()
 
         if (fullName.isNullOrEmpty() || email.isNullOrEmpty() || username.isNullOrEmpty() || password.isNullOrEmpty() || phone.isNullOrEmpty() || regNo.isNullOrEmpty()) {
             binding.progressBar.visibility = View.GONE
@@ -166,7 +167,8 @@ class RegisterVerifyCodeActivity : BaseActivity() {
                     gender = gender,
                     disability = disability,
                     manifesto = if (role == "candidate") manifesto else null,
-                    positionId = if (role == "candidate") positionId else null
+                    positionId = if (role == "candidate") positionId else null,
+                    profilePhotoPath = if (role == "candidate") profilePhotoPath else null
                 )
 
                 authViewModel.register(registerRequest)

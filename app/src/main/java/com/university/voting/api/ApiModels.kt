@@ -20,7 +20,8 @@ data class RegisterRequest(
     val gender: String? = null,
     val disability: String? = null,
     val manifesto: String? = null,
-    val positionId: String? = null
+    val positionId: String? = null,
+    val profilePhotoPath: String? = null
 )
 
 data class LoginRequest(
@@ -103,7 +104,8 @@ data class UpdateProfileRequest(
     val fullName: String? = null,
     val email: String? = null,
     val phoneNumber: String? = null,
-    val manifesto: String? = null
+    val manifesto: String? = null,
+    val profilePhotoPath: String? = null
 )
 
 data class UpdateUserRequest(
@@ -199,6 +201,7 @@ data class CandidateResponse(
     val regNo: String? = null,
     val faculty: String? = null,
     val course: String? = null,
+    val profilePhotoPath: String? = null,
     val isVerified: Boolean = false,
     val positionName: String? = null
 )
