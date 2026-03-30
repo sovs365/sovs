@@ -188,13 +188,20 @@ router.post('/elections', authenticateToken, requireRole('admin'), async (req, r
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
+    const normalizedStart = Number(startDate);
+    const normalizedEnd = Number(endDate);
+    if (!Number.isFinite(normalizedStart) || !Number.isFinite(normalizedEnd) || normalizedEnd <= normalizedStart) {
+      return res.status(400).json({ error: 'Invalid election period' });
+    }
+
     const electionId = uuidv4();
     const now = Date.now();
+    const initialStatus = normalizedEnd <= now ? 'closed' : 'open';
 
     await query(
       `INSERT INTO elections (election_id, position_id, title, description, start_date, end_date, status, created_at, updated_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-      [electionId, positionId, title, description, startDate, endDate, 'draft', now, now]
+      [electionId, positionId, title, description, normalizedStart, normalizedEnd, initialStatus, now, now]
     );
 
     const result = await query(
