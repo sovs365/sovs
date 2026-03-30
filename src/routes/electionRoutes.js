@@ -158,7 +158,7 @@ router.get('/elections/open', async (req, res) => {
       SELECT e.*, p.name as position_name
       FROM elections e
       LEFT JOIN positions p ON e.position_id = p.position_id
-      WHERE LOWER(COALESCE(e.status, '')) IN ('open', 'draft') AND e.start_date <= $1 AND e.end_date >= $1
+      WHERE LOWER(COALESCE(e.status, '')) IN ('open', 'draft') AND e.end_date >= $1
       ORDER BY e.end_date ASC
     `, [now]);
 
