@@ -5,6 +5,23 @@ import { query } from '../db.js';
 
 const router = express.Router();
 
+async function synchronizeExpiredElections(now = Date.now()) {
+  await query(
+    `UPDATE elections
+     SET status = 'closed', updated_at = $1
+     WHERE end_date < $1 AND status <> 'closed'`,
+    [now]
+  );
+}
+
+function resolveElectionStatus(election, now = Date.now()) {
+  const endDate = Number(election.end_date || 0);
+  if (endDate > 0 && now > endDate) {
+    return 'closed';
+  }
+  return election.status;
+}
+
 // Get all positions
 router.get('/positions', async (req, res) => {
   try {
@@ -76,6 +93,9 @@ router.post('/positions', authenticateToken, requireRole('admin'), async (req, r
 // Get all elections
 router.get('/elections', async (req, res) => {
   try {
+    const now = Date.now();
+    await synchronizeExpiredElections(now);
+
     const result = await query(`
       SELECT e.*, p.name as position_name
       FROM elections e
@@ -83,7 +103,7 @@ router.get('/elections', async (req, res) => {
       ORDER BY e.created_at DESC
     `);
 
-    const elections = result.rows.map(e => formatElectionResponse(e));
+    const elections = result.rows.map(e => formatElectionResponse(e, now));
     res.json(elections);
   } catch (error) {
     console.error('Error fetching elections:', error);
@@ -116,6 +136,8 @@ router.get('/positions/election/:electionId', async (req, res) => {
 router.get('/elections/open', async (req, res) => {
   try {
     const now = Date.now();
+    await synchronizeExpiredElections(now);
+
     const result = await query(`
       SELECT e.*, p.name as position_name
       FROM elections e
@@ -124,7 +146,7 @@ router.get('/elections/open', async (req, res) => {
       ORDER BY e.end_date ASC
     `, [now]);
 
-    const elections = result.rows.map(e => formatElectionResponse(e));
+    const elections = result.rows.map(e => formatElectionResponse(e, now));
     res.json(elections);
   } catch (error) {
     console.error('Error fetching open elections:', error);
@@ -135,6 +157,9 @@ router.get('/elections/open', async (req, res) => {
 // Get election by ID
 router.get('/elections/:id', async (req, res) => {
   try {
+    const now = Date.now();
+    await synchronizeExpiredElections(now);
+
     const result = await query(
       `SELECT e.*, p.name as position_name
        FROM elections e
@@ -147,7 +172,7 @@ router.get('/elections/:id', async (req, res) => {
       return res.status(404).json({ error: 'Election not found' });
     }
 
-    res.json(formatElectionResponse(result.rows[0]));
+    res.json(formatElectionResponse(result.rows[0], now));
   } catch (error) {
     console.error('Error fetching election:', error);
     res.status(500).json({ error: 'Failed to fetch election' });
@@ -199,9 +224,33 @@ async function updateElectionStatusHandler(req, res) {
       return res.status(400).json({ error: 'Invalid status' });
     }
 
+    const electionResult = await query(
+      'SELECT election_id, start_date, end_date, status FROM elections WHERE election_id = $1',
+      [req.params.id]
+    );
+
+    if (electionResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Election not found' });
+    }
+
+    const election = electionResult.rows[0];
+    const now = Date.now();
+
+    let normalizedStatus = status;
+
+    // After election end-time, election is always closed.
+    if (now > Number(election.end_date || 0)) {
+      normalizedStatus = 'closed';
+    }
+
+    // If admin force-closes during active/scheduled window, keep it as draft (paused).
+    if (status === 'closed' && now <= Number(election.end_date || 0)) {
+      normalizedStatus = 'draft';
+    }
+
     await query(
       'UPDATE elections SET status = $1, updated_at = $2 WHERE election_id = $3',
-      [status, Date.now(), req.params.id]
+      [normalizedStatus, now, req.params.id]
     );
 
     const result = await query(
@@ -212,13 +261,11 @@ async function updateElectionStatusHandler(req, res) {
       [req.params.id]
     );
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Election not found' });
-    }
-
     res.json({
-      message: 'Election status updated successfully',
-      election: formatElectionResponse(result.rows[0])
+      message: normalizedStatus !== status
+        ? 'Election moved to draft for this period. It will appear closed after end date.'
+        : 'Election status updated successfully',
+      election: formatElectionResponse(result.rows[0], now)
     });
   } catch (error) {
     console.error('Error updating election:', error);
@@ -571,7 +618,7 @@ function formatPositionResponse(position) {
   };
 }
 
-function formatElectionResponse(election) {
+function formatElectionResponse(election, now = Date.now()) {
   return {
     electionId: election.election_id,
     positionId: election.position_id,
@@ -579,7 +626,7 @@ function formatElectionResponse(election) {
     description: election.description,
     startDate: election.start_date,
     endDate: election.end_date,
-    status: election.status,
+    status: resolveElectionStatus(election, now),
     positionName: election.position_name
   };
 }
