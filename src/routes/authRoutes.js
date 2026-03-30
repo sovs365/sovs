@@ -12,7 +12,7 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // Version endpoint (for deployment tracking)
 router.get('/version', (req, res) => {
   res.json({
-    version: '1.2.7',
+    version: '1.2.8',
     timestamp: new Date().toISOString(),
     hasVerificationCode: true
   });
@@ -222,6 +222,9 @@ router.post('/register', async (req, res) => {
     const userId = uuidv4();
     const passwordHash = await bcryptjs.hash(password, 12);
     const now = Date.now();
+    const normalizedYearOfStudy = yearOfStudy !== null && yearOfStudy !== undefined
+      ? String(yearOfStudy).trim()
+      : null;
 
     // Auto-verify voters with complete info, always verify admins
     const shouldVerifyAutomatically = (normalizedRole === 'voter' || normalizedRole === 'admin') &&
@@ -236,7 +239,7 @@ router.post('/register', async (req, res) => {
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)`,
       [
         userId, username, passwordHash, fullName, normalizedEmail, phoneNumber, normalizedRole,
-        regNo, faculty, course, subjectCombination, levelOfStudy, yearOfStudy,
+        regNo, faculty, course, subjectCombination, levelOfStudy, normalizedYearOfStudy,
         gender, disability, manifesto,
         normalizedRole === 'admin' ? true : shouldVerifyAutomatically,
         now, now
@@ -267,7 +270,21 @@ router.post('/register', async (req, res) => {
 
   } catch (error) {
     console.error('Registration error:', error);
-    res.status(500).json({ error: 'Registration failed' });
+
+    if (error?.code === '23505') {
+      return res.status(400).json({ error: 'Username or email already exists' });
+    }
+
+    if (error?.code === '23503') {
+      return res.status(400).json({ error: 'Invalid referenced data selected. Please refresh and try again.' });
+    }
+
+    if (error?.code === '22P02') {
+      return res.status(400).json({ error: 'Invalid registration data format.' });
+    }
+
+    const details = error?.message ? `Registration failed: ${error.message}` : 'Registration failed';
+    res.status(500).json({ error: details });
   }
 });
 
