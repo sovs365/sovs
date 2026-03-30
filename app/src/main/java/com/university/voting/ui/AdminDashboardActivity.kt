@@ -11,6 +11,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.lifecycle.lifecycleScope
 import com.university.voting.R
+import com.university.voting.api.ElectionResponse
 import com.university.voting.repository.VotingRepository
 import com.university.voting.util.ProfileImageLoader
 import kotlinx.coroutines.launch
@@ -113,10 +114,22 @@ class AdminDashboardActivity : BaseActivity() {
                     ivHeaderPhoto.setImageDrawable(null)
                 }
 
-                repository.getOpenElections().onSuccess { elections ->
+                repository.getAllElections().onSuccess { elections ->
                     val formatter = SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault())
-                    val items = elections.map { election ->
-                        "${election.title} - Ends: ${formatter.format(Date(election.endDate))}"
+                    val now = System.currentTimeMillis()
+                    val sorted = elections.sortedWith(
+                        compareBy<ElectionResponse>(
+                            { statusPriority(getDisplayStatus(it, now)) },
+                            { it.endDate }
+                        )
+                    )
+                    val items = if (sorted.isEmpty()) {
+                        listOf("No elections available")
+                    } else {
+                        sorted.map { election ->
+                            val displayStatus = getDisplayStatus(election, now)
+                            "${election.title} - $displayStatus - Ends: ${formatter.format(Date(election.endDate))}"
+                        }
                     }
                     listActive.adapter = ArrayAdapter(
                         this@AdminDashboardActivity,
@@ -133,6 +146,25 @@ class AdminDashboardActivity : BaseActivity() {
             } catch (_: Exception) {
                 Toast.makeText(this@AdminDashboardActivity, "Error loading dashboard data", Toast.LENGTH_SHORT).show()
             }
+        }
+    }
+
+    private fun getDisplayStatus(election: ElectionResponse, now: Long = System.currentTimeMillis()): String {
+        return when {
+            now > election.endDate -> "CLOSED"
+            election.status.equals("open", ignoreCase = true) && now >= election.startDate -> "LIVE"
+            election.status.equals("open", ignoreCase = true) -> "OPEN"
+            else -> "DRAFT"
+        }
+    }
+
+    private fun statusPriority(status: String): Int {
+        return when (status.uppercase(Locale.getDefault())) {
+            "LIVE" -> 0
+            "OPEN" -> 1
+            "DRAFT" -> 2
+            "CLOSED" -> 3
+            else -> 4
         }
     }
 }

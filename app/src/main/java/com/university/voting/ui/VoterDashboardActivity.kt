@@ -101,11 +101,17 @@ class VoterDashboardActivity : BaseActivity() {
                     }
                 }
 
-                binding.noticeCard.visibility = View.VISIBLE
-                binding.tvElectionNotice.text = if (filteredElections.isNotEmpty()) {
-                    "Notice: ${filteredElections.size} election(s) are open. Vote all to unlock live analysis."
-                } else {
-                    "No open elections at this time."
+                val pendingElections = filteredElections.filterNot { votedElectionIds.contains(it.electionId) }
+                binding.noticeCard.visibility = when {
+                    filteredElections.isEmpty() -> View.VISIBLE
+                    pendingElections.isNotEmpty() -> View.VISIBLE
+                    else -> View.GONE
+                }
+                binding.tvElectionNotice.text = when {
+                    filteredElections.isEmpty() -> "No open elections at this time."
+                    pendingElections.isNotEmpty() ->
+                        "Notice: You still have ${pendingElections.size} open election(s) pending. Please vote now."
+                    else -> "All open elections are completed."
                 }
 
                 val canViewLiveAnalysis = filteredElections.isNotEmpty() &&
