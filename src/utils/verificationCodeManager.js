@@ -19,12 +19,16 @@ class VerificationCodeManager {
     return (email || '').trim().toLowerCase();
   }
 
+  normalizeCode(code) {
+    return (code || '').toString().replace(/\D/g, '').trim();
+  }
+
   /**
    * Store a verification code
    */
   storeCode(email, code, type = 'registration') {
     const normalizedEmail = this.normalizeEmail(email);
-    const sanitizedCode = (code || '').toString().trim();
+    const sanitizedCode = this.normalizeCode(code);
 
     if (!normalizedEmail || !sanitizedCode) {
       return false;
@@ -43,7 +47,7 @@ class VerificationCodeManager {
    */
   verifyCode(email, code, type = 'registration') {
     const normalizedEmail = this.normalizeEmail(email);
-    const sanitizedCode = (code || '').toString().trim();
+    const sanitizedCode = this.normalizeCode(code);
 
     if (!normalizedEmail || !sanitizedCode) {
       return false;
@@ -64,6 +68,30 @@ class VerificationCodeManager {
 
     // Check if code matches
     return stored.code === sanitizedCode;
+  }
+
+  /**
+   * Get active (non-expired) code if it exists
+   */
+  getActiveCode(email, type = 'registration') {
+    const normalizedEmail = this.normalizeEmail(email);
+    if (!normalizedEmail) {
+      return null;
+    }
+
+    const key = `${normalizedEmail}:${type}`;
+    const stored = this.codes.get(key);
+
+    if (!stored) {
+      return null;
+    }
+
+    if (Date.now() > stored.expiresAt) {
+      this.codes.delete(key);
+      return null;
+    }
+
+    return stored.code;
   }
 
   /**

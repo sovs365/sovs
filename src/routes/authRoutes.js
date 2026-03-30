@@ -14,7 +14,7 @@ const VERIFIED_REGISTRATION_EXPIRY_MS = 30 * 60 * 1000; // 30 minutes
 // Version endpoint (for deployment tracking)
 router.get('/version', (req, res) => {
   res.json({
-    version: '1.2.10',
+    version: '1.2.11',
     timestamp: new Date().toISOString(),
     hasVerificationCode: true
   });
@@ -63,6 +63,10 @@ function normalizeEmail(email) {
   return (email || '').trim().toLowerCase();
 }
 
+function normalizeCode(code) {
+  return (code || '').toString().replace(/\D/g, '').trim();
+}
+
 function isValidEmail(email) {
   return EMAIL_PATTERN.test(normalizeEmail(email));
 }
@@ -95,7 +99,7 @@ async function persistVerificationCode(email, code, type = 'registration') {
 async function verifyCodeFromDb(email, code, type = 'registration') {
   try {
     const normalizedEmail = normalizeEmail(email);
-    const sanitizedCode = (code || '').toString().trim();
+    const sanitizedCode = normalizeCode(code);
 
     if (!normalizedEmail || !sanitizedCode) {
       return false;
@@ -125,6 +129,39 @@ async function verifyCodeFromDb(email, code, type = 'registration') {
   } catch (error) {
     console.error('Verify code from DB error:', error.message);
     return false;
+  }
+}
+
+async function getActiveCodeFromDb(email, type = 'registration') {
+  try {
+    const normalizedEmail = normalizeEmail(email);
+    if (!normalizedEmail) {
+      return null;
+    }
+
+    const result = await query(
+      `SELECT code, expires_at
+       FROM verification_codes
+       WHERE LOWER(email) = $1 AND type = $2
+       LIMIT 1`,
+      [normalizedEmail, type]
+    );
+
+    if (result.rows.length === 0) {
+      return null;
+    }
+
+    const row = result.rows[0];
+    const expiresAt = Number(row.expires_at || 0);
+    if (Date.now() > expiresAt) {
+      await deleteVerificationCodeFromDb(normalizedEmail, type);
+      return null;
+    }
+
+    return normalizeCode(row.code);
+  } catch (error) {
+    console.error('Get active code from DB error:', error.message);
+    return null;
   }
 }
 
@@ -240,8 +277,10 @@ router.post('/send-registration-code', async (req, res) => {
       return res.status(400).json({ error: 'Email already registered' });
     }
 
-    // Generate verification code
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    // Reuse active code if one already exists to avoid invalidating recently sent emails
+    const activeCode = verificationCodeManager.getActiveCode(normalizedEmail, 'registration') ||
+      await getActiveCodeFromDb(normalizedEmail, 'registration');
+    const code = activeCode || Math.floor(100000 + Math.random() * 900000).toString();
 
     // Store code in memory manager
     const codeStored = verificationCodeManager.storeCode(normalizedEmail, code, 'registration');
@@ -282,7 +321,7 @@ router.post('/verify-registration-code', async (req, res) => {
   try {
     const { email, code } = req.body;
     const normalizedEmail = normalizeEmail(email);
-    const normalizedCode = (code || '').toString().trim();
+    const normalizedCode = normalizeCode(code);
 
     if (!normalizedEmail || !normalizedCode) {
       return res.status(400).json({ error: 'Email and code are required' });
@@ -496,8 +535,10 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'No email is configured for this account. Contact administrator.' });
     }
 
-    // Generate verification code
-    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+    // Reuse active code if one already exists to avoid invalidating recently sent emails
+    const activeCode = verificationCodeManager.getActiveCode(userEmail, 'login') ||
+      await getActiveCodeFromDb(userEmail, 'login');
+    const verificationCode = activeCode || Math.floor(100000 + Math.random() * 900000).toString();
 
     // Store code in memory manager
     const codeStored = verificationCodeManager.storeCode(userEmail, verificationCode, 'login');
@@ -541,7 +582,7 @@ router.post('/verify-login-code', async (req, res) => {
   try {
     const { email, code } = req.body;
     const normalizedEmail = normalizeEmail(email);
-    const normalizedCode = (code || '').toString().trim();
+    const normalizedCode = normalizeCode(code);
 
     if (!normalizedEmail || !normalizedCode) {
       return res.status(400).json({ error: 'Email and code are required' });
@@ -671,8 +712,10 @@ router.post('/send-password-reset-code', async (req, res) => {
       return res.status(400).json({ error: 'Email not found' });
     }
 
-    // Generate verification code
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    // Reuse active code if one already exists to avoid invalidating recently sent emails
+    const activeCode = verificationCodeManager.getActiveCode(normalizedEmail, 'password_reset') ||
+      await getActiveCodeFromDb(normalizedEmail, 'password_reset');
+    const code = activeCode || Math.floor(100000 + Math.random() * 900000).toString();
 
     // Store code in memory manager
     const codeStored = verificationCodeManager.storeCode(normalizedEmail, code, 'password_reset');
@@ -713,7 +756,7 @@ router.post('/verify-password-reset-code', async (req, res) => {
   try {
     const { email, code } = req.body;
     const normalizedEmail = normalizeEmail(email);
-    const normalizedCode = (code || '').toString().trim();
+    const normalizedCode = normalizeCode(code);
 
     if (!normalizedEmail || !normalizedCode) {
       return res.status(400).json({ error: 'Email and code are required' });
@@ -748,7 +791,7 @@ router.post('/reset-password', async (req, res) => {
   try {
     const { email, code, newPassword, confirmPassword } = req.body;
     const normalizedEmail = normalizeEmail(email);
-    const normalizedCode = (code || '').toString().trim();
+    const normalizedCode = normalizeCode(code);
 
     if (!normalizedEmail || !normalizedCode || !newPassword || !confirmPassword) {
       return res.status(400).json({ error: 'All fields are required' });
@@ -826,6 +869,7 @@ router.post('/send-reset-code', async (req, res) => {
     
     // Store code
     verificationCodeManager.storeCode(email, code, 'password_reset');
+    await persistVerificationCode(email, code, 'password_reset');
 
     const sent = await emailProviderService.sendVerificationCode(email, code, 'password_reset');
     if (!sent) {
@@ -853,8 +897,9 @@ router.post('/verify-reset-code', async (req, res) => {
   try {
     console.warn('⚠️  DEPRECATED ENDPOINT: /verify-reset-code - Use /verify-password-reset-code instead');
     const { phoneNumber, code } = req.body;
+    const normalizedCode = normalizeCode(code);
 
-    if (!phoneNumber || !code) {
+    if (!phoneNumber || !normalizedCode) {
       return res.status(400).json({ error: 'Phone number and code are required' });
     }
 
@@ -871,7 +916,10 @@ router.post('/verify-reset-code', async (req, res) => {
     const email = userResult.rows[0].email;
 
     // Verify code
-    const isValid = verificationCodeManager.verifyCode(email, code, 'password_reset');
+    let isValid = verificationCodeManager.verifyCode(email, normalizedCode, 'password_reset');
+    if (!isValid) {
+      isValid = await verifyCodeFromDb(email, normalizedCode, 'password_reset');
+    }
 
     if (!isValid) {
       return res.status(400).json({ error: 'Invalid or expired code' });
