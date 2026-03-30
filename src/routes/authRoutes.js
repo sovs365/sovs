@@ -16,7 +16,7 @@ const MAX_PROFILE_PHOTO_LENGTH = 6_000_000;
 // Version endpoint (for deployment tracking)
 router.get('/version', (req, res) => {
   res.json({
-    version: '1.2.16',
+    version: '1.2.17',
     timestamp: new Date().toISOString(),
     hasVerificationCode: true
   });
@@ -84,7 +84,8 @@ function extractProfilePhotoPath(payload = {}) {
     payload?.profileImageBase64,
     payload?.profileImage,
     payload?.profilePhotoUrl,
-    payload?.imageUrl
+    payload?.imageUrl,
+    payload?.profile_photo_path
   ];
 
   for (const value of candidates) {
@@ -713,7 +714,7 @@ router.get('/me', authenticateToken, async (req, res) => {
 });
 
 // Update current user profile
-router.put('/me', authenticateToken, async (req, res) => {
+async function updateCurrentUserHandler(req, res) {
   try {
     const {
       fullName,
@@ -766,7 +767,10 @@ router.put('/me', authenticateToken, async (req, res) => {
     console.error('Error updating profile:', error);
     res.status(500).json({ error: 'Failed to update profile' });
   }
-});
+}
+
+router.put('/me', authenticateToken, updateCurrentUserHandler);
+router.patch('/me', authenticateToken, updateCurrentUserHandler);
 
 // Send password reset code (email)
 router.post('/send-password-reset-code', async (req, res) => {
