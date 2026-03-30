@@ -4,10 +4,13 @@ import Mailgun from 'mailgun.js';
 class MailgunEmailService {
   constructor() {
     this.mailgun = new Mailgun(FormData);
-    this.mg = this.mailgun.client({
-      username: 'api',
-      key: process.env.MAILGUN_API_KEY || ''
-    });
+    const mailgunApiKey = (process.env.MAILGUN_API_KEY || '').trim();
+    this.mg = mailgunApiKey
+      ? this.mailgun.client({
+          username: 'api',
+          key: mailgunApiKey
+        })
+      : null;
     
     this.domain = process.env.MAILGUN_DOMAIN;
     this.fromEmail = process.env.MAILGUN_FROM_EMAIL;
@@ -138,7 +141,7 @@ class MailgunEmailService {
           </div>
         `
       },
-      reset: {
+      password_reset: {
         subject: 'SOVS - Password Reset Code',
         body: `
           <div style="font-family: Arial, sans-serif; background-color: #f5f5f5; padding: 20px;">

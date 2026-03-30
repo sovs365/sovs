@@ -2,42 +2,95 @@ import nodemailer from 'nodemailer';
 
 class BrevoEmailService {
   constructor() {
-    // Initialize Brevo SMTP transporter
+    this.apiKey = (process.env.BREVO_API_KEY || '').trim();
+    this.fromEmail = (process.env.BREVO_FROM_EMAIL || '').trim();
+    this.fromName = process.env.BREVO_FROM_NAME || 'SOVS System';
+    this.apiBaseUrl = (process.env.BREVO_API_BASE_URL || 'https://api.brevo.com/v3').trim();
+    this.smtpLogin = (process.env.BREVO_SMTP_LOGIN || this.fromEmail).trim();
+    this.smtpPort = Number(process.env.BREVO_SMTP_PORT || 587);
+    this.smtpSecure = String(process.env.BREVO_SMTP_SECURE || 'false').toLowerCase() === 'true';
+
     this.transporter = nodemailer.createTransport({
       host: 'smtp-relay.brevo.com',
-      port: 587,
-      secure: false,
+      port: this.smtpPort,
+      secure: this.smtpSecure,
       auth: {
-        user: process.env.BREVO_FROM_EMAIL || '',
-        pass: process.env.BREVO_API_KEY || ''
-      }
+        user: this.smtpLogin || '',
+        pass: this.apiKey || ''
+      },
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 15000
     });
 
-    this.fromEmail = process.env.BREVO_FROM_EMAIL;
-    this.fromName = process.env.BREVO_FROM_NAME || 'SOVS System';
     this.isConfigured = this.validateConfiguration();
   }
 
   validateConfiguration() {
-    const apiKey = (process.env.BREVO_API_KEY || '').trim();
-    const fromEmail = (process.env.BREVO_FROM_EMAIL || '').trim();
-    
-    const isValid = apiKey.length > 0 && 
-                   fromEmail.length > 0 &&
-                   !apiKey.toLowerCase().includes('placeholder') &&
-                   !fromEmail.toLowerCase().includes('placeholder');
-    
+    const apiKey = this.apiKey;
+    const fromEmail = this.fromEmail;
+
+    const isValid = apiKey.length > 0 &&
+      fromEmail.length > 0 &&
+      !apiKey.toLowerCase().includes('placeholder') &&
+      !fromEmail.toLowerCase().includes('placeholder');
+
     if (!isValid) {
-      console.warn('⚠️  Brevo email service not properly configured.');
-      console.warn('   Set BREVO_API_KEY and BREVO_FROM_EMAIL environment variables.');
+      console.warn('WARN Brevo email service not properly configured.');
+      console.warn('     Set BREVO_API_KEY and BREVO_FROM_EMAIL environment variables.');
     }
-    
+
     return isValid;
+  }
+
+  async sendViaHttpApi(recipientEmail, subject, htmlBody) {
+    const endpoint = `${this.apiBaseUrl}/smtp/email`;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+    try {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          accept: 'application/json',
+          'api-key': this.apiKey,
+          'content-type': 'application/json'
+        },
+        body: JSON.stringify({
+          sender: {
+            name: this.fromName,
+            email: this.fromEmail
+          },
+          to: [{ email: recipientEmail }],
+          subject,
+          htmlContent: htmlBody
+        }),
+        signal: controller.signal
+      });
+
+      if (!response.ok) {
+        const responseText = await response.text();
+        const details = responseText.slice(0, 300);
+        const error = new Error(`Brevo API ${response.status}: ${details}`);
+        error.status = response.status;
+        throw error;
+      }
+
+      return true;
+    } finally {
+      clearTimeout(timeoutId);
+    }
   }
 
   async sendVerificationCode(recipientEmail, code, type = 'registration') {
     if (!this.isConfigured) {
-      console.error('❌ Brevo email service not configured. Cannot send email.');
+      console.error('ERROR Brevo email service not configured. Cannot send email.');
+      return false;
+    }
+
+    const normalizedEmail = (recipientEmail || '').trim();
+    if (!normalizedEmail) {
+      console.error('ERROR Invalid recipient email');
       return false;
     }
 
@@ -45,48 +98,45 @@ class BrevoEmailService {
     const retryDelayMs = 1000;
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      const { subject, body } = this.getEmailTemplate(code, type);
+
       try {
-        const normalizedEmail = (recipientEmail || '').trim();
-        
-        if (!normalizedEmail) {
-          console.error('❌ Invalid recipient email');
-          return false;
-        }
+        await this.sendViaHttpApi(normalizedEmail, subject, body);
+        console.log(`OK Verification email sent to ${normalizedEmail} via Brevo API`);
+        return true;
+      } catch (apiError) {
+        console.warn(`WARN Brevo API attempt ${attempt}/${maxRetries} failed: ${apiError.message}`);
+      }
 
-        const { subject, body } = this.getEmailTemplate(code, type);
-
+      try {
         const mailOptions = {
           from: `${this.fromName} <${this.fromEmail}>`,
           to: normalizedEmail,
-          subject: subject,
+          subject,
           html: body
         };
 
         const info = await this.transporter.sendMail(mailOptions);
-        
-        console.log(`✅ Verification email sent to ${normalizedEmail}`);
+        console.log(`OK Verification email sent to ${normalizedEmail} via Brevo SMTP`);
         console.log(`   Message ID: ${info.messageId}`);
         return true;
+      } catch (smtpError) {
+        console.warn(`WARN Brevo SMTP fallback attempt ${attempt}/${maxRetries} failed: ${smtpError.message}`);
 
-      } catch (error) {
-        console.warn(`⚠️  Email send attempt ${attempt}/${maxRetries} failed: ${error.message}`);
-        
-        if (error.message?.includes('authentication') || error.message?.includes('Invalid credentials')) {
-          console.error('❌ Brevo SMTP authentication failed.');
-          console.error(`   Check BREVO_API_KEY and BREVO_FROM_EMAIL settings.`);
+        if (smtpError.message?.includes('authentication') || smtpError.message?.includes('Invalid credentials')) {
+          console.error('ERROR Brevo SMTP authentication failed.');
+          console.error('      Check BREVO_API_KEY and BREVO_SMTP_LOGIN/BREVO_FROM_EMAIL settings.');
           return false;
         }
+      }
 
-        // For transient errors, retry with exponential backoff
-        if (attempt < maxRetries) {
-          const delayMs = retryDelayMs * attempt;
-          console.log(`⏳ Retrying in ${delayMs}ms...`);
-          await new Promise(resolve => setTimeout(resolve, delayMs));
-        } else {
-          console.error('❌ Failed to send verification email after all retries.');
-          console.error(`   Last error: ${error.message}`);
-          return false;
-        }
+      if (attempt < maxRetries) {
+        const delayMs = retryDelayMs * attempt;
+        console.log(`INFO Retrying in ${delayMs}ms...`);
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      } else {
+        console.error('ERROR Failed to send verification email after all retries.');
+        return false;
       }
     }
 
@@ -139,7 +189,7 @@ class BrevoEmailService {
           </div>
         `
       },
-      reset: {
+      password_reset: {
         subject: 'SOVS - Password Reset Code',
         body: `
           <div style="font-family: Arial, sans-serif; background-color: #f5f5f5; padding: 20px;">

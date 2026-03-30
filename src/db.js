@@ -294,7 +294,6 @@ export async function seedAdminUser() {
     if (!tableCheck.rows[0].exists) {
       console.error('❌ Users table does not exist!');
       console.log('🔐 ========== ADMIN USER SEEDING FAILED ==========\n');
-      client.release();
       return;
     }
     console.log('✅ Users table exists');
@@ -321,7 +320,6 @@ export async function seedAdminUser() {
       );
       console.log(`   Email updated to: ${correctEmail}`);
       console.log('🔐 ========== ADMIN USER SEEDING COMPLETE ==========\n');
-      client.release();
       return;
     }
     

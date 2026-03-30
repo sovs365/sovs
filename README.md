@@ -60,6 +60,13 @@ All required environment variables are documented in the `.sovs` file:
 | NODE_ENV | Environment mode | `production` |
 | APP_ENV | Application environment | `production` |
 | PORT | Server port | `3000` |
+| CORS_ALLOWED_HOSTS | Allowed frontend origins | `*` or comma-separated domains |
+| BREVO_API_KEY | Brevo API key (required for Brevo email) | `xkeysib-...` |
+| BREVO_FROM_EMAIL | Brevo sender email (required for Brevo email) | `noreply@yourdomain.com` |
+| BREVO_FROM_NAME | Brevo sender display name (optional) | `SOVS System` |
+| BREVO_SMTP_LOGIN | Brevo SMTP login (optional fallback) | `your-brevo-login` |
+| SMTP_SENDER_EMAIL | SMTP sender (optional fallback) | `your-gmail@example.com` |
+| SMTP_APP_PASSWORD | SMTP app password (optional fallback) | `xxxx xxxx xxxx xxxx` |
 
 ---
 
@@ -90,6 +97,11 @@ All required environment variables are documented in the `.sovs` file:
    JWT_EXPIRATION_MS=86400000
    NODE_ENV=production
    APP_ENV=production
+   PORT=3000
+   CORS_ALLOWED_HOSTS=*
+   BREVO_API_KEY=your-brevo-api-key
+   BREVO_FROM_EMAIL=your-verified-brevo-sender@example.com
+   BREVO_FROM_NAME=SOVS System
    ```
 
 ### Step 4: Deploy

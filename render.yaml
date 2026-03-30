@@ -23,6 +23,9 @@ services:
     # - JWT_AUDIENCE
     # - JWT_EXPIRATION_MS
     # - CORS_ALLOWED_HOSTS
+    # - BREVO_API_KEY + BREVO_FROM_EMAIL (preferred)
+    # - BREVO_SMTP_LOGIN (optional, if SMTP auth login differs from sender email)
+    #   or SMTP_SENDER_EMAIL + SMTP_APP_PASSWORD (fallback)
     
     healthCheckPath: /
     

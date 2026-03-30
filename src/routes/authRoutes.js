@@ -3,7 +3,7 @@ import bcryptjs from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
 import { generateToken, authenticateToken, getUserById } from '../auth.js';
 import { query } from '../db.js';
-import brevoEmailService from '../utils/brevoEmailService.js';
+import emailProviderService from '../utils/emailProviderService.js';
 import verificationCodeManager from '../utils/verificationCodeManager.js';
 
 const router = express.Router();
@@ -12,7 +12,7 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // Version endpoint (for deployment tracking)
 router.get('/version', (req, res) => {
   res.json({
-    version: '1.2.4',
+    version: '1.2.5',
     timestamp: new Date().toISOString(),
     hasVerificationCode: true
   });
@@ -20,16 +20,38 @@ router.get('/version', (req, res) => {
 
 // Diagnostic endpoint - Check email configuration
 router.get('/health-email', (req, res) => {
-  const emailSet = !!process.env.SMTP_SENDER_EMAIL;
-  const passwordSet = !!process.env.SMTP_APP_PASSWORD;
+  const providerStatus = emailProviderService.getProviderStatus();
+  const activeProviders = emailProviderService.getActiveProviderNames();
+  const brevoConfigured = providerStatus.find(p => p.name === 'brevo')?.configured || false;
+  const smtpConfigured = providerStatus.find(p => p.name === 'smtp')?.configured || false;
+  const mailgunConfigured = providerStatus.find(p => p.name === 'mailgun')?.configured || false;
   const databaseSet = !!process.env.DATABASE_URL;
+  const configurationHint = emailProviderService.getConfigurationHint();
+  const hasAnyConfiguredProvider = activeProviders.length > 0;
   
   res.json({
     diagnos: {
-      smtpEmailConfigured: emailSet,
-      smtpPasswordConfigured: passwordSet,
+      brevoConfigured,
+      smtpConfigured,
+      mailgunConfigured,
+      mode: hasAnyConfiguredProvider ? 'multi_provider' : 'none_configured',
+      hasAnyConfiguredProvider,
+      activeProviders,
       databaseConfigured: databaseSet,
-      smtpEmail: emailSet ? process.env.SMTP_SENDER_EMAIL.substring(0, 5) + '***' : 'NOT SET',
+      configurationHint,
+      providerStatus,
+      timestamp: new Date().toISOString()
+    },
+    diagnosis: {
+      brevoConfigured,
+      smtpConfigured,
+      mailgunConfigured,
+      mode: hasAnyConfiguredProvider ? 'multi_provider' : 'none_configured',
+      hasAnyConfiguredProvider,
+      activeProviders,
+      databaseConfigured: databaseSet,
+      configurationHint,
+      providerStatus,
       timestamp: new Date().toISOString()
     }
   });
@@ -41,6 +63,11 @@ function normalizeEmail(email) {
 
 function isValidEmail(email) {
   return EMAIL_PATTERN.test(normalizeEmail(email));
+}
+
+function getEmailFailureResponse(errorMessage) {
+  const hint = emailProviderService.getConfigurationHint();
+  return hint ? { error: errorMessage, hint } : { error: errorMessage };
 }
 
 // Send registration verification code (email)
@@ -76,16 +103,15 @@ router.post('/send-registration-code', async (req, res) => {
       return res.status(500).json({ error: 'Could not prepare verification code' });
     }
 
-    // Send email (non-blocking)
-    brevoEmailService.sendVerificationCode(normalizedEmail, code, 'registration')
-      .then(sent => {
-        if (sent) {
-          console.log(`✅ Registration verification code sent to ${normalizedEmail}`);
-        } else {
-          console.warn(`⚠️  Failed to send registration verification code to ${normalizedEmail}`);
-        }
-      })
-      .catch(error => console.error(`❌ Error sending registration code: ${error.message}`));
+    const sent = await emailProviderService.sendVerificationCode(normalizedEmail, code, 'registration');
+    if (!sent) {
+      verificationCodeManager.deleteCode(normalizedEmail, 'registration');
+      return res.status(503).json(
+        getEmailFailureResponse('Unable to send verification code email. Please try again later.')
+      );
+    }
+
+    console.log(`✅ Registration verification code sent to ${normalizedEmail}`);
 
     res.json({ 
       message: 'Verification code sent to email',
@@ -294,18 +320,15 @@ router.post('/login', async (req, res) => {
       return res.status(500).json({ error: 'Could not prepare login verification code' });
     }
 
-    // Send verification code to email (non-blocking - send in background)
-    brevoEmailService.sendVerificationCode(userEmail, verificationCode, 'login')
-      .then(sent => {
-        if (sent) {
-          console.log(`✅ Login verification code sent to ${userEmail}`);
-        } else {
-          console.warn(`⚠️  Failed to send login verification code to ${userEmail}`);
-        }
-      })
-      .catch(error => {
-        console.error(`❌ Error sending login verification code: ${error.message}`);
-      });
+    const sent = await emailProviderService.sendVerificationCode(userEmail, verificationCode, 'login');
+    if (!sent) {
+      verificationCodeManager.deleteCode(userEmail, 'login');
+      return res.status(503).json(
+        getEmailFailureResponse('Unable to send login verification code email. Please try again later.')
+      );
+    }
+
+    console.log(`✅ Login verification code sent to ${userEmail}`);
 
     // Immediately return success - don't wait for email
     res.json({
@@ -461,16 +484,15 @@ router.post('/send-password-reset-code', async (req, res) => {
       return res.status(500).json({ error: 'Could not prepare reset code' });
     }
 
-    // Send email (non-blocking)
-    brevoEmailService.sendVerificationCode(normalizedEmail, code, 'password_reset')
-      .then(sent => {
-        if (sent) {
-          console.log(`✅ Password reset code sent to ${normalizedEmail}`);
-        } else {
-          console.warn(`⚠️  Failed to send password reset code to ${normalizedEmail}`);
-        }
-      })
-      .catch(error => console.error(`❌ Error sending reset code: ${error.message}`));
+    const sent = await emailProviderService.sendVerificationCode(normalizedEmail, code, 'password_reset');
+    if (!sent) {
+      verificationCodeManager.deleteCode(normalizedEmail, 'password_reset');
+      return res.status(503).json(
+        getEmailFailureResponse('Unable to send password reset code email. Please try again later.')
+      );
+    }
+
+    console.log(`✅ Password reset code sent to ${normalizedEmail}`);
 
     res.json({ 
       message: 'Password reset code sent to email',
@@ -595,16 +617,15 @@ router.post('/send-reset-code', async (req, res) => {
     // Store code
     verificationCodeManager.storeCode(email, code, 'password_reset');
 
-    // Send email (non-blocking)
-    brevoEmailService.sendVerificationCode(email, code, 'password_reset')
-      .then(sent => {
-        if (sent) {
-          console.log(`✅ Reset code sent to ${email}`);
-        } else {
-          console.warn(`⚠️  Failed to send reset code to ${email}`);
-        }
-      })
-      .catch(error => console.error(`❌ Error sending reset code: ${error.message}`));
+    const sent = await emailProviderService.sendVerificationCode(email, code, 'password_reset');
+    if (!sent) {
+      verificationCodeManager.deleteCode(email, 'password_reset');
+      return res.status(503).json(
+        getEmailFailureResponse('Unable to send password reset code email. Please try again later.')
+      );
+    }
+
+    console.log(`✅ Reset code sent to ${email}`);
 
     res.json({ 
       message: 'Reset code sent to email associated with phone number',
@@ -746,7 +767,7 @@ router.post('/test-email', async (req, res) => {
     const testCode = '123456';
     
     // Send test email and await result
-    const result = await brevoEmailService.sendVerificationCode(email, testCode, 'registration');
+    const result = await emailProviderService.sendVerificationCode(email, testCode, 'registration');
     
     if (result) {
       res.json({

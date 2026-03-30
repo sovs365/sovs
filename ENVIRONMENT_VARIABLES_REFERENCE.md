@@ -1,152 +1,51 @@
-# 📋 COPY-PASTE ENVIRONMENT VARIABLES FOR RENDER
-## All 9 Variables Ready to Add
+# Render Environment Variables (backend-node)
 
----
+This backend now supports multiple email providers.
+At least one email provider must be configured for registration/login/password-reset codes to send.
 
-## ✅ STATUS: All Variables Saved
+## Core required variables
 
-**Location**: `.env.sovs` file in your project
+1. `DATABASE_URL`
+2. `JWT_SECRET`
+3. `JWT_ISSUER`
+4. `JWT_AUDIENCE`
+5. `JWT_EXPIRATION_MS`
+6. `NODE_ENV`
+7. `APP_ENV`
+8. `PORT`
+9. `CORS_ALLOWED_HOSTS`
 
-**Total Variables**: 9
+## Email provider variables (choose at least one provider)
 
-**Effect of Saving in One File**: ✅ **NO NEGATIVE EFFECT**
-- Having all variables in one file is standard practice
-- Makes it easier to manage and reference
-- No performance impact whatsoever
-- Recommended approach
+### Option A (recommended): Brevo SMTP
+10. `BREVO_API_KEY`
+11. `BREVO_FROM_EMAIL`
+12. `BREVO_FROM_NAME` (optional, defaults to `SOVS System`)
+13. `BREVO_SMTP_LOGIN` (optional, defaults to `BREVO_FROM_EMAIL`)
 
----
+### Option B: Gmail/SMTP fallback
+10. `SMTP_SENDER_EMAIL`
+11. `SMTP_APP_PASSWORD`
 
-## 🔑 ALL 9 VARIABLES (Copy-Paste Ready)
+### Option C: Mailgun fallback
+10. `MAILGUN_API_KEY`
+11. `MAILGUN_DOMAIN`
+12. `MAILGUN_FROM_EMAIL`
 
-### Variable 1
-```
-Key: DATABASE_URL
-Value: postgres://postgres:your_password@hostname:5432/sovs_db
-```
+## Example production values
 
-### Variable 2
-```
-Key: JWT_SECRET
-Value: gdfreyo01-voting-backend-2024-secure-key
-```
-
-### Variable 3
-```
-Key: JWT_ISSUER
-Value: university-voting-app
-```
-
-### Variable 4
-```
-Key: JWT_AUDIENCE
-Value: university-voting-users
-```
-
-### Variable 5
-```
-Key: JWT_EXPIRATION_MS
-Value: 86400000
+```env
+NODE_ENV=production
+APP_ENV=production
+PORT=3000
+CORS_ALLOWED_HOSTS=*
+JWT_ISSUER=university-voting-app
+JWT_AUDIENCE=university-voting-users
+JWT_EXPIRATION_MS=86400000
 ```
 
-### Variable 6
-```
-Key: NODE_ENV
-Value: production
-```
+## Quick verification after deploy
 
-### Variable 7
-```
-Key: APP_ENV
-Value: production
-```
-
-### Variable 8
-```
-Key: PORT
-Value: 3000
-```
-
-### Variable 9
-```
-Key: CORS_ALLOWED_HOSTS
-Value: *
-```
-
----
-
-## 📝 HOW TO ADD TO RENDER (Step-by-Step)
-
-### For Each Variable Above:
-
-1. Go to: https://dashboard.render.com
-2. Select your service: `sovs-backend`
-3. Go to: **"Environment"** tab
-4. Click: **"Add Environment Variable"** (or + button)
-5. **Key**: Copy from above (e.g., `DATABASE_URL`)
-6. **Value**: Copy from above (e.g., your actual connection string)
-7. Press **Tab** or click elsewhere to save
-8. Repeat for next variable
-
----
-
-## ⚠️ IMPORTANT NOTES
-
-### DATABASE_URL:
-- **DO NOT** use the placeholder value
-- Replace `your_password` and `hostname` with your ACTUAL Render database connection string
-- Get this from: `RENDER_DATABASE_SETUP.md`
-
-### All Other Variables:
-- **USE EXACTLY** as shown above
-- Don't modify or change values
-- Copy-paste exactly
-
----
-
-## ✅ VERIFICATION CHECKLIST
-
-After adding all 9 variables to Render, verify:
-
-- [ ] DATABASE_URL - Your actual Render connection string
-- [ ] JWT_SECRET - Exactly: `gdfreyo01-voting-backend-2024-secure-key`
-- [ ] JWT_ISSUER - Exactly: `university-voting-app`
-- [ ] JWT_AUDIENCE - Exactly: `university-voting-users`
-- [ ] JWT_EXPIRATION_MS - Exactly: `86400000`
-- [ ] NODE_ENV - Exactly: `production`
-- [ ] APP_ENV - Exactly: `production`
-- [ ] PORT - Exactly: `3000`
-- [ ] CORS_ALLOWED_HOSTS - Exactly: `*`
-
-**All 9 added?** → Click "Deploy" → Your app goes live! 🚀
-
----
-
-## 💾 WHERE THIS REFERENCE CAME FROM
-
-**File**: `.env.sovs`
-
-This file contains the exact same 9 variables, fully documented and commented.
-
-Having all variables in ONE file has:
-- ✅ No negative effects
-- ✅ Better organization
-- ✅ Easier to reference
-- ✅ Standard best practice in development
-
----
-
-## 🎯 QUICK SUMMARY
-
-| Count | Status |
-|-------|--------|
-| Variables documented | 9/9 ✅ |
-| Variables in .env.sovs | 9/9 ✅ |
-| Ready to add to Render | 9/9 ✅ |
-| Time to add all | ~5 minutes |
-
----
-
-**Your variables are 100% ready to add to Render!**
-
-Follow RENDER_DEPLOYMENT_GUIDE.md Part 6 to add them.
+1. Open `GET /api/auth/health-email`.
+2. Confirm `diagnosis.hasAnyConfiguredProvider` is `true`.
+3. Confirm `diagnosis.activeProviders` contains at least one provider.
