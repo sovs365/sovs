@@ -15,7 +15,7 @@ const VERIFIED_REGISTRATION_EXPIRY_MS = 30 * 60 * 1000; // 30 minutes
 // Version endpoint (for deployment tracking)
 router.get('/version', (req, res) => {
   res.json({
-    version: '1.2.12',
+    version: '1.2.13',
     timestamp: new Date().toISOString(),
     hasVerificationCode: true
   });
@@ -93,8 +93,11 @@ function verifyDeterministicRegistrationCode(email, code) {
   }
 
   const currentWindow = getRegistrationCodeWindow();
-  // Accept previous/current/next window to tolerate clock drift and delivery delays.
-  for (const offset of [-1, 0, 1]) {
+  // Accept a wider window to tolerate delivery delays and clock drift.
+  // Default offsets: previous 2 windows, current window, and next window.
+  const lookbackWindows = Number(process.env.REGISTRATION_CODE_LOOKBACK_WINDOWS || 2);
+  const lookaheadWindows = Number(process.env.REGISTRATION_CODE_LOOKAHEAD_WINDOWS || 1);
+  for (let offset = -lookbackWindows; offset <= lookaheadWindows; offset += 1) {
     const expected = generateDeterministicRegistrationCode(normalizedEmail, currentWindow + offset);
     if (expected === normalizedCode) {
       return true;
