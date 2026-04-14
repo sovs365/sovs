@@ -2,7 +2,12 @@ package com.university.voting.ui
 
 import android.content.Context
 import android.os.Bundle
+import android.text.method.HideReturnsTransformationMethod
+import android.text.method.PasswordTransformationMethod
+import android.view.MotionEvent
+import android.widget.EditText
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import com.university.voting.R
 
 open class BaseActivity : AppCompatActivity() {
@@ -29,5 +34,48 @@ open class BaseActivity : AppCompatActivity() {
 
         // Set typeface globally or apply another theme layer if needed.
         // For this demo, the primary theme handles the font size.
+    }
+
+    protected fun setupPasswordVisibilityToggle(vararg passwordFields: EditText) {
+        passwordFields.forEach { field ->
+            configurePasswordField(field)
+        }
+    }
+
+    private fun configurePasswordField(field: EditText) {
+        var passwordVisible = false
+        applyPasswordDrawable(field, passwordVisible)
+
+        field.setOnTouchListener { _, event ->
+            if (event.action == MotionEvent.ACTION_UP && event.x >= (field.width - field.compoundPaddingEnd)) {
+                passwordVisible = !passwordVisible
+                val cursorPosition = field.selectionEnd.coerceAtLeast(0)
+
+                field.transformationMethod = if (passwordVisible) {
+                    HideReturnsTransformationMethod.getInstance()
+                } else {
+                    PasswordTransformationMethod.getInstance()
+                }
+
+                applyPasswordDrawable(field, passwordVisible)
+                field.setSelection(cursorPosition)
+                true
+            } else {
+                false
+            }
+        }
+    }
+
+    private fun applyPasswordDrawable(field: EditText, passwordVisible: Boolean) {
+        val drawables = field.compoundDrawablesRelative
+        val icon = if (passwordVisible) R.drawable.ic_visibility_off else R.drawable.ic_visibility
+        val endDrawable = ContextCompat.getDrawable(this, icon)
+
+        field.setCompoundDrawablesRelativeWithIntrinsicBounds(
+            drawables[0],
+            drawables[1],
+            endDrawable,
+            drawables[3]
+        )
     }
 }

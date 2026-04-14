@@ -19,6 +19,7 @@ class LoginActivity : BaseActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityLoginBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        setupPasswordVisibilityToggle(binding.etPassword)
 
         binding.btnLogin.setOnClickListener {
             login()

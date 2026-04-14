@@ -49,6 +49,7 @@ class RegistrationActivity : BaseActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityRegistrationBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        setupPasswordVisibilityToggle(binding.etPassword)
 
         viewModel = ViewModelProvider(this).get(AdminViewModel::class.java)
 

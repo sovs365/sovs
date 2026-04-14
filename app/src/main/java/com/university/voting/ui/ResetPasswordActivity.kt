@@ -17,6 +17,7 @@ class ResetPasswordActivity : BaseActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityResetPasswordBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        setupPasswordVisibilityToggle(binding.etNewPassword, binding.etConfirmPassword)
 
         val email = intent.getStringExtra("email")?.trim().orEmpty()
         val code = intent.getStringExtra("code")?.trim().orEmpty()

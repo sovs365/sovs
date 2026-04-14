@@ -5,20 +5,20 @@ import android.os.Bundle
 import android.util.Patterns
 import android.view.View
 import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.university.voting.api.RegisterRequest
 import com.university.voting.api.RetrofitClient
 import com.university.voting.databinding.ActivityAdminRegistrationBinding
 import kotlinx.coroutines.launch
 
-class AdminRegistrationActivity : AppCompatActivity() {
+class AdminRegistrationActivity : BaseActivity() {
     private lateinit var binding: ActivityAdminRegistrationBinding
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityAdminRegistrationBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        setupPasswordVisibilityToggle(binding.etPassword)
 
         binding.btnRegister.setOnClickListener { registerAdmin() }
         binding.btnBack.setOnClickListener { finish() }
