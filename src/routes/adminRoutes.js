@@ -290,12 +290,12 @@ async function getReportsHandler(req, res) {
 
     const userCounts = {};
     userCountResult.rows.forEach(row => {
-      userCounts[row.role] = row.count;
+      userCounts[row.role] = Number(row.count || 0);
     });
 
     // Count elections
     const electionCountResult = await query('SELECT COUNT(*) FROM elections');
-    const totalElections = electionCountResult.rows[0].count;
+    const totalElections = Number(electionCountResult.rows[0].count || 0);
 
     // Count active elections
     const activeElectionCountResult = await query(
@@ -403,7 +403,7 @@ router.get('/admin/elections/:id/details', authenticateToken, requireRole('admin
 
     // Get vote breakdown
     const voteBreakdownResult = await query(`
-      SELECT c.candidate_id, u.full_name, COUNT(v.vote_id) as votes
+      SELECT c.candidate_id, u.full_name, COUNT(v.vote_id)::int AS votes
       FROM candidates c
       LEFT JOIN users u ON c.user_id = u.user_id
       LEFT JOIN votes v ON c.candidate_id = v.candidate_id AND v.election_id = $1
@@ -414,7 +414,7 @@ router.get('/admin/elections/:id/details', authenticateToken, requireRole('admin
 
     // Get voter participation
     const participationResult = await query(`
-      SELECT COUNT(DISTINCT voter_id) as participated_voters
+      SELECT COUNT(DISTINCT voter_id)::int AS participated_voters
       FROM votes
       WHERE election_id = $1
     `, [req.params.id]);
@@ -429,9 +429,9 @@ router.get('/admin/elections/:id/details', authenticateToken, requireRole('admin
       voteBreakdown: voteBreakdownResult.rows.map(row => ({
         candidateId: row.candidate_id,
         candidateName: row.full_name,
-        votes: row.votes
+        votes: Number(row.votes || 0)
       })),
-      participatedVoters: participationResult.rows[0].participated_voters
+      participatedVoters: Number(participationResult.rows[0].participated_voters || 0)
     });
   } catch (error) {
     console.error('Error fetching election details:', error);

@@ -416,7 +416,7 @@ async function getElectionResultsHandler(req, res) {
 
       // Get vote counts for each candidate
       const votesResult = await query(`
-        SELECT c.candidate_id, u.full_name, COUNT(*) as count
+        SELECT c.candidate_id, u.full_name, COUNT(*)::int AS count
         FROM votes v
         LEFT JOIN candidates c ON v.candidate_id = c.candidate_id
         LEFT JOIN users u ON c.user_id = u.user_id
@@ -425,13 +425,13 @@ async function getElectionResultsHandler(req, res) {
         ORDER BY count DESC
       `, [req.params.electionId, pos.position_id]);
 
-      const totalVotes = votesResult.rows.reduce((sum, row) => sum + row.count, 0);
+      const totalVotes = votesResult.rows.reduce((sum, row) => sum + Number(row.count || 0), 0);
 
       const candidates = votesResult.rows.map(row => ({
         candidateId: row.candidate_id,
         candidateName: row.full_name,
-        votes: row.count,
-        percentage: totalVotes > 0 ? Number((row.count / totalVotes * 100).toFixed(2)) : 0
+        votes: Number(row.count || 0),
+        percentage: totalVotes > 0 ? Number(((Number(row.count || 0) / totalVotes) * 100).toFixed(2)) : 0
       }));
 
       positions.push({
