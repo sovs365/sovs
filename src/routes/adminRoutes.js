@@ -1,7 +1,7 @@
 import express from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { authenticateToken, requireRole } from '../auth.js';
-import { query } from '../db.js';
+import { query, getClient } from '../db.js';
 
 const router = express.Router();
 
@@ -175,20 +175,88 @@ router.put('/admin/users/:id/unlock', authenticateToken, requireRole('admin'), a
 
 // Delete user (admin only)
 router.delete('/admin/users/:id', authenticateToken, requireRole('admin'), async (req, res) => {
+  let client;
   try {
-    const result = await query(
-      'DELETE FROM users WHERE user_id = $1 RETURNING user_id',
-      [req.params.id]
+    const targetUserId = req.params.id;
+    client = await getClient();
+    await client.query('BEGIN');
+
+    const userResult = await client.query(
+      'SELECT user_id, email FROM users WHERE user_id = $1 FOR UPDATE',
+      [targetUserId]
     );
 
-    if (result.rows.length === 0) {
+    if (userResult.rows.length === 0) {
+      await client.query('ROLLBACK');
       return res.status(404).json({ error: 'User not found' });
     }
 
+    const normalizedEmail = (userResult.rows[0].email || '').trim().toLowerCase();
+
+    // Remove votes cast by this user and votes that reference the user's candidate entries.
+    await client.query(
+      `DELETE FROM votes
+       WHERE voter_id = $1
+          OR candidate_id IN (
+            SELECT candidate_id
+            FROM candidates
+            WHERE user_id = $1
+          )`,
+      [targetUserId]
+    );
+
+    await client.query(
+      'DELETE FROM candidates WHERE user_id = $1',
+      [targetUserId]
+    );
+
+    await client.query(
+      'DELETE FROM admin_logs WHERE admin_id = $1',
+      [targetUserId]
+    );
+
+    if (normalizedEmail) {
+      await client.query(
+        'DELETE FROM verification_codes WHERE LOWER(email) = $1',
+        [normalizedEmail]
+      );
+      await client.query(
+        'DELETE FROM verified_registrations WHERE LOWER(email) = $1',
+        [normalizedEmail]
+      );
+    }
+
+    const deleteResult = await client.query(
+      'DELETE FROM users WHERE user_id = $1 RETURNING user_id',
+      [targetUserId]
+    );
+
+    if (deleteResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    await client.query('COMMIT');
     res.json({ message: 'User deleted successfully' });
   } catch (error) {
+    if (client) {
+      try {
+        await client.query('ROLLBACK');
+      } catch (rollbackError) {
+        console.error('Error rolling back user delete transaction:', rollbackError);
+      }
+    }
+
+    if (error?.code === '23503') {
+      return res.status(409).json({ error: 'User cannot be deleted because dependent records still exist' });
+    }
+
     console.error('Error deleting user:', error);
     res.status(500).json({ error: 'Failed to delete user' });
+  } finally {
+    if (client) {
+      client.release();
+    }
   }
 });
 
