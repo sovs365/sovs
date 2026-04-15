@@ -212,6 +212,12 @@ export async function initializeDatabase() {
         expires_at BIGINT NOT NULL,
         created_at BIGINT NOT NULL
       );
+
+      CREATE TABLE IF NOT EXISTS registration_notices (
+        audience VARCHAR(50) PRIMARY KEY,
+        deadline BIGINT,
+        updated_at BIGINT NOT NULL
+      );
       
       CREATE TABLE IF NOT EXISTS admin_logs (
         log_id VARCHAR(36) PRIMARY KEY,

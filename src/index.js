@@ -9,6 +9,7 @@ import authRoutes from './routes/authRoutes.js';
 import electionRoutes from './routes/electionRoutes.js';
 import voteRoutes from './routes/voteRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
+import noticeRoutes from './routes/noticeRoutes.js';
 
 dotenv.config();
 
@@ -83,6 +84,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api', electionRoutes);
 app.use('/api', voteRoutes);
 app.use('/api', adminRoutes);
+app.use('/api', noticeRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
