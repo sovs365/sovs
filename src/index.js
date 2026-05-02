@@ -4,7 +4,7 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
-import { initializeDatabase, seedDatabase, seedAdminUser } from './db.js';
+import { initializeDatabase, query, seedDatabase, seedAdminUser } from './db.js';
 import authRoutes from './routes/authRoutes.js';
 import electionRoutes from './routes/electionRoutes.js';
 import voteRoutes from './routes/voteRoutes.js';
@@ -64,7 +64,7 @@ app.get('/health', (req, res) => {
 
 app.get('/health/ready', async (req, res) => {
   try {
-    // Quick health check
+    await query('SELECT 1');
     res.json({
       status: 'healthy',
       database: 'connected',
@@ -120,8 +120,12 @@ async function startServer() {
     console.log(`🔌 Server Port: ${PORT}`);
     console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`);
     
-    // Initialize database (non-blocking - server continues if DB fails)
+    // Initialize database before serving production traffic.
     const dbHealthy = await initializeDatabase();
+
+    if (!dbHealthy && APP_ENV === 'production') {
+      throw new Error('Database initialization failed');
+    }
     
     if (APP_ENV === 'development') {
       try {

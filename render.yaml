@@ -27,7 +27,7 @@ services:
     # - BREVO_SMTP_LOGIN (optional, if SMTP auth login differs from sender email)
     #   or SMTP_SENDER_EMAIL + SMTP_APP_PASSWORD (fallback)
     
-    healthCheckPath: /
+    healthCheckPath: /health/ready
     
     # Auto-deploy on git push
     autoDeploy: true
