@@ -14,8 +14,43 @@ function quoteIdent(identifier) {
   return `"${String(identifier).replace(/"/g, '""')}"`;
 }
 
-function parseDatabaseUrl(databaseUrl = process.env.DATABASE_URL || '') {
+function normalizeRenderDatabaseHostname(hostname = '') {
+  const normalized = String(hostname || '').trim().toLowerCase();
+  if (!normalized || normalized.includes('.')) {
+    return hostname;
+  }
+
+  // Render internal PostgreSQL hosts are bare dpg-* IDs in some copied values.
+  // Promote them to the internal DNS form so the service can resolve them.
+  if (/^dpg-[a-z0-9-]+$/.test(normalized)) {
+    return `${normalized}.internal`;
+  }
+
+  return hostname;
+}
+
+function normalizeDatabaseUrl(databaseUrl = process.env.DATABASE_URL || '') {
   const normalized = String(databaseUrl || '').trim();
+  if (!normalized) {
+    return normalized;
+  }
+
+  try {
+    const parsed = new URL(normalized);
+    const nextHostname = normalizeRenderDatabaseHostname(parsed.hostname);
+    if (nextHostname && nextHostname !== parsed.hostname) {
+      parsed.hostname = nextHostname;
+      return parsed.toString();
+    }
+  } catch (error) {
+    return normalized;
+  }
+
+  return normalized;
+}
+
+function parseDatabaseUrl(databaseUrl = process.env.DATABASE_URL || '') {
+  const normalized = normalizeDatabaseUrl(databaseUrl);
   if (!normalized) {
     return null;
   }
@@ -406,8 +441,14 @@ async function finalizeSchema(client) {
 
 const initializePool = () => {
   try {
-    const databaseUrl = process.env.DATABASE_URL;
+    const rawDatabaseUrl = process.env.DATABASE_URL;
+    const databaseUrl = normalizeDatabaseUrl(rawDatabaseUrl);
     const sslConfig = resolveSslConfig(databaseUrl);
+    const rawHost = getDatabaseHostLabel(rawDatabaseUrl);
+    const normalizedHost = getDatabaseHostLabel(databaseUrl);
+    if (rawHost !== normalizedHost) {
+      console.log(`Normalized database host: ${rawHost} -> ${normalizedHost}`);
+    }
     console.log(`Database host: ${getDatabaseHostLabel(databaseUrl)} | SSL: ${sslConfig ? 'enabled' : 'disabled'}`);
 
     pool = new Pool({
